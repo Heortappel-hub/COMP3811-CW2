@@ -18,6 +18,13 @@
 
 #include "defaults.hpp"
 
+#include "simple_mesh.hpp"
+#include "loadobj.hpp"
+
+#include <rapidobj/rapidobj.hpp>
+
+
+
 
 namespace
 {
@@ -26,6 +33,7 @@ namespace
 	void glfw_callback_error_( int, char const* );
 
 	void glfw_callback_key_( GLFWwindow*, int, int, int, int );
+
 
 	struct GLFWCleanupHelper
 	{
@@ -36,6 +44,8 @@ namespace
 		~GLFWWindowDeleter();
 		GLFWwindow* window;
 	};
+
+
 
 }
 
@@ -133,8 +143,11 @@ int main() try
 
 	// Other initialization & loading
 	OGL_CHECKPOINT_ALWAYS();
-	
-	// TODO: global GL setup goes here
+
+	// Load the mesh from assets/parlahti.obj
+	ModelMeshData mesh = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
+	// Upload mesh to GPU
+	GLuint vao = create_vao_mat( mesh );
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -209,6 +222,7 @@ namespace
 			glfwSetWindowShouldClose( aWindow, GLFW_TRUE );
 			return;
 		}
+
 	}
 
 }
