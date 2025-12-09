@@ -40,9 +40,11 @@ namespace
 		bool cameraActive = false;
 		bool forward = false, back = false, left = false, right = false;
 		bool up = false, down = false;
+		bool shiftPressed = false;  // 追踪 Shift 键状态
+		bool ctrlPressed = false;   // 追踪 Ctrl 键状态
 		
 		float phi = 0.f, theta = 0.f;
-		float posX = 100.f, posY = 10.f, posZ = 100.f;  // 调整：更近的位置
+		float posX = 100.f, posY = 10.f, posZ = 100.f; 
 		
 		float lastX = 0.f, lastY = 0.f;
 	};
@@ -50,6 +52,7 @@ namespace
 	void glfw_callback_error_( int, char const* );
 	void glfw_callback_key_( GLFWwindow*, int, int, int, int );
 	void glfw_callback_motion_( GLFWwindow*, double, double );
+	void glfw_callback_mouse_button_( GLFWwindow*, int, int, int );  // 新增
 
 	struct GLFWCleanupHelper
 	{
@@ -120,6 +123,7 @@ int main() try
 	glfwSetWindowUserPointer(window, &camControl);
 	glfwSetKeyCallback( window, &glfw_callback_key_ );
 	glfwSetCursorPosCallback( window, &glfw_callback_motion_ );
+	glfwSetMouseButtonCallback( window, &glfw_callback_mouse_button_ );  // 新增鼠标按键回调
 
 	// Set up drawing stuff
 	glfwMakeContextCurrent( window );
@@ -154,16 +158,16 @@ int main() try
 
 	glViewport( 0, 0, iwidth, iheight );
 
-	// Other initialization & loading
+
 	OGL_CHECKPOINT_ALWAYS();
 
 	// Build shader program
-	ShaderProgram prog({
+	ShaderProgram prog_map({
 		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/default.vert" },
 		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER,"./assets/cw2/default.frag" }
 	});
 
-	// Load the mesh from assets/parlahti.obj
+	// Load the mesh
 	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
 	
 	std::print("=== OBJ Loading Info ===\n");
@@ -176,34 +180,7 @@ int main() try
 	if (parlahti_model.mesh.positions.empty())
 		throw Error("OBJ has no positions");
 	
-	// Debug: print first few positions and normals
-	if (parlahti_model.mesh.positions.size() > 0) {
-		std::print("\nFirst vertex position: ({}, {}, {})\n", 
-			parlahti_model.mesh.positions[0].x,
-			parlahti_model.mesh.positions[0].y,
-			parlahti_model.mesh.positions[0].z);
-	}
-	if (parlahti_model.mesh.normals.size() > 0) {
-		std::print("First vertex normal: ({}, {}, {})\n",
-			parlahti_model.mesh.normals[0].x,
-			parlahti_model.mesh.normals[0].y,
-			parlahti_model.mesh.normals[0].z);
-	}
 	
-	// Debug: print first material
-	if( !parlahti_model.materials.empty() )
-	{
-		auto const& m = parlahti_model.materials[0];
-		std::print("\n=== First Material '{}' ===\n", m.name);
-		std::print("Ka (ambient): ({}, {}, {})\n", m.Ka.x, m.Ka.y, m.Ka.z);
-		std::print("Kd (diffuse): ({}, {}, {})\n", m.Kd.x, m.Kd.y, m.Kd.z);
-		std::print("Ks (specular): ({}, {}, {})\n", m.Ks.x, m.Ks.y, m.Ks.z);
-		std::print("Ns (shininess): {}\n", m.Ns);
-		std::print("Ni (IOR): {}\n", m.Ni);
-		std::print("d (opacity): {}\n", m.d);
-		std::print("illum: {}\n", m.illum);
-	}
-	std::print("========================\n\n");
 	
 	// Upload mesh to GPU
 	GLuint parlahti_vao = create_vao_mat(parlahti_model);
@@ -229,8 +206,9 @@ int main() try
 		0.f, 0.f, 1.f
 	};
 
-	// Light direction (world space)
-	float lightDir[3] = {0.3f, 0.6f, 0.7f};
+	// Light direction (world space) - normalized (0, 1, -1)
+	// Original: (0, 1, -1), normalized: (0, 0.707107, -0.707107)
+	float lightDir[3] = {0.0f, 1.0f, -1.0f};
 
 	// Model transform for the map
 	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });  // 移除下移，保持在原点
@@ -254,8 +232,15 @@ int main() try
 		// Update camera position based on input state
 		if (camControl.cameraActive)
 		{
-			float moveSpeed = kMovementSpeed * dt;
+			// 速度调节：Shift 加速 3 倍，Ctrl 减速到 1/3
+			float speedMultiplier = 1.0f;
+			if (camControl.shiftPressed)
+				speedMultiplier = 3.0f;      // Shift: 3x 速度
+			else if (camControl.ctrlPressed)
+				speedMultiplier = 1.0f / 3.0f; // Ctrl: 1/3x 速度
 			
+			float moveSpeed = kMovementSpeed * dt * speedMultiplier;
+
 			// Forward/Back movement (along view direction in XZ plane)
 			if (camControl.forward)
 			{
@@ -268,7 +253,8 @@ int main() try
 				camControl.posX += moveSpeed * std::sin(camControl.phi);
 			}
 			
-			// Left/Right strafe (perpendicular to view direction)
+
+			// Left/Right
 			if (camControl.left)
 			{
 				camControl.posZ += moveSpeed * std::sin(camControl.phi);
@@ -280,7 +266,8 @@ int main() try
 				camControl.posX -= moveSpeed * std::cos(camControl.phi);
 			}
 			
-			// Up/Down movement (world Y axis)
+
+			// Up/Down movement 
 			if (camControl.up)
 				camControl.posY += moveSpeed;
 			if (camControl.down)
@@ -288,7 +275,6 @@ int main() try
 		}
 		
 		// Compute view matrix from camera state
-		// Order: first rotate around Y (phi/yaw), then around X (theta/pitch), then translate
 		Mat44f Rx = make_rotation_x(camControl.theta);
 		Mat44f Ry = make_rotation_y(camControl.phi);
 		Mat44f T = make_translation({-camControl.posX, -camControl.posY, -camControl.posZ});
@@ -332,7 +318,7 @@ int main() try
 		OGL_CHECKPOINT_DEBUG();
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		glUseProgram( prog.programId() );
+		glUseProgram( prog_map.programId() );
 
 		Mat44f modelView = view * map2world;
 		Mat44f normalMat4 = transpose(modelView);
@@ -389,31 +375,30 @@ namespace
 		auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
 		if (!cam) return;
 
-		// Space toggles camera control mode
-		if (GLFW_KEY_SPACE == aKey && GLFW_PRESS == aAction)
-		{
-			cam->cameraActive = !cam->cameraActive;
-			
-			if (cam->cameraActive)
-			{
-				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-				std::print("Camera control ACTIVE (WASD/QE to move, mouse to look)\n");
-			}
-			else
-			{
-				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-				std::print("Camera control INACTIVE\n");
-			}
-			return;
-		}
-
 		// Movement keys (only respond when camera is active)
 		if (cam->cameraActive)
 		{
 			bool isPress = (aAction == GLFW_PRESS);
 			bool isRelease = (aAction == GLFW_RELEASE);
 
-			if (GLFW_KEY_S == aKey)
+			// Handle Shift key for speed boost
+			if (GLFW_KEY_LEFT_SHIFT == aKey || GLFW_KEY_RIGHT_SHIFT == aKey)
+			{
+				if (isPress)
+					cam->shiftPressed = true;
+				else if (isRelease)
+					cam->shiftPressed = false;
+			}
+			// Handle Ctrl key for slow motion
+			else if (GLFW_KEY_LEFT_CONTROL == aKey || GLFW_KEY_RIGHT_CONTROL == aKey)
+			{
+				if (isPress)
+					cam->ctrlPressed = true;  // 修复：设置 ctrlPressed
+				else if (isRelease)
+					cam->ctrlPressed = false; // 修复：设置 ctrlPressed
+			}
+			// Movement keys
+			else if (GLFW_KEY_S == aKey)
 				cam->forward = isPress ? true : (isRelease ? false : cam->forward);
 			else if (GLFW_KEY_W == aKey)
 				cam->back = isPress ? true : (isRelease ? false : cam->back);
@@ -452,6 +437,29 @@ namespace
 		// Always update last position for smooth delta calculation
 		cam->lastX = float(aX);
 		cam->lastY = float(aY);
+	}
+
+	void glfw_callback_mouse_button_( GLFWwindow* aWindow, int aButton, int aAction, int )
+	{
+		// Right mouse button toggles camera control
+		if (aButton == GLFW_MOUSE_BUTTON_RIGHT && aAction == GLFW_PRESS)
+		{
+			auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
+			if (!cam) return;
+
+			cam->cameraActive = !cam->cameraActive;
+
+			if (cam->cameraActive)
+			{
+				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				std::print("Camera control ACTIVE (WASD/QE to move, mouse to look, right-click to toggle)\n");
+			}
+			else
+			{
+				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				std::print("Camera control INACTIVE (right-click to activate)\n");
+			}
+		}
 	}
 }
 
