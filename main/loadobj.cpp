@@ -111,17 +111,17 @@ ModelMeshData load_wavefront_obj_mat(char const* aPath)
 				res.attributes.positions[idx.position_index * 3 + 2]
 				});
 
-			// normals
-			if (idx.normal_index >= 0)
+			// normals - use provided normal or default
+			if (!res.attributes.normals.empty() && idx.normal_index >= 0)
 				ret.mesh.normals.emplace_back(Vec3f{
 					res.attributes.normals[idx.normal_index * 3 + 0],
 					res.attributes.normals[idx.normal_index * 3 + 1],
 					res.attributes.normals[idx.normal_index * 3 + 2]
 					});
-			else ret.mesh.normals.emplace_back(Vec3f{ 0.f,0.f,1.f });
+			else ret.mesh.normals.emplace_back(Vec3f{ 0.f,1.f,0.f });
 
 			// texcoords
-			if (idx.texcoord_index >= 0)
+			if (!res.attributes.texcoords.empty() && idx.texcoord_index >= 0)
 				ret.mesh.texcoords.emplace_back(Vec2f{
 					res.attributes.texcoords[idx.texcoord_index * 2 + 0],
 					res.attributes.texcoords[idx.texcoord_index * 2 + 1]

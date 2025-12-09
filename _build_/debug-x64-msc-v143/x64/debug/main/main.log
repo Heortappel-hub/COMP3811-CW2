@@ -1,9 +1,64 @@
 ﻿  main.cpp
-  simple_mesh.cpp
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x38b 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x38c 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x390 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x391 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x392 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x393 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x394 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x395 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x396 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x398 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x399 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1906 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1908 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x190b 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1910 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1911 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1916 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a8c 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a8e 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a8f 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a90 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a92 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a94 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a95 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a96 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a97 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a98 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a99 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a9b 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a9d 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a9e 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(1,1): warning C4828: 文件包含在偏移 0x1a9f 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
 E:\Windows Kits\10\Include\10.0.26100.0\shared\minwindef.h(130,9): warning C4005: “APIENTRY”: 宏重定义
   (编译源文件“main.cpp”)
       C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\third_party\glad\include\glad\glad.h(47,9):
       参见“APIENTRY”的前一个定义
   
-C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\main.cpp(150,9): warning C4189: “vao”: 局部变量已初始化但不引用
+  simple_mesh.cpp
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x1b2 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x1b3 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x3f1 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x3f2 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x62e 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x62f 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x85e 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x85f 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13cb 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13cc 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13ce 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13cf 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13d5 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13d6 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13d8 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13da 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13db 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13dc 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13dd 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13de 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13df 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13e1 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13e3 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
+C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\main\simple_mesh.cpp(1,1): warning C4828: 文件包含在偏移 0x13e4 处开始的字符，该字符在当前源字符集中无效(代码页 65001)。
   main.vcxproj -> C:\Users\28185\Desktop\Leeds\Y3\Computer Graph\CW2\cw2(shared)\cw2\bin\main-debug-x64-msc-v143.exe

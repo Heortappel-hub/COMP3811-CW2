@@ -5,6 +5,7 @@
 #include <numbers>
 #include <typeinfo>
 #include <stdexcept>
+#include <cmath>
 
 #include <cstdlib>
 
@@ -30,10 +31,25 @@ namespace
 {
 	constexpr char const* kWindowTitle = "COMP3811 - CW2";
 	
+	constexpr float kPi_ = 3.1415926f;
+	constexpr float kMovementSpeed = 10.f;
+	constexpr float kMouseSensitivity = 0.01f;
+
+	struct CamCtrl_
+	{
+		bool cameraActive = false;
+		bool forward = false, back = false, left = false, right = false;
+		bool up = false, down = false;
+		
+		float phi = 0.f, theta = 0.f;
+		float posX = 100.f, posY = 10.f, posZ = 100.f;  // 调整：更近的位置
+		
+		float lastX = 0.f, lastY = 0.f;
+	};
+	
 	void glfw_callback_error_( int, char const* );
-
 	void glfw_callback_key_( GLFWwindow*, int, int, int, int );
-
+	void glfw_callback_motion_( GLFWwindow*, double, double );
 
 	struct GLFWCleanupHelper
 	{
@@ -44,9 +60,6 @@ namespace
 		~GLFWWindowDeleter();
 		GLFWwindow* window;
 	};
-
-
-
 }
 
 int main() try
@@ -100,11 +113,13 @@ int main() try
 
 	GLFWWindowDeleter windowDeleter{ window };
 
+	// Camera control state
+	CamCtrl_ camControl;
 
 	// Set up event handling
-	// TODO: Additional event handling setup
-
+	glfwSetWindowUserPointer(window, &camControl);
 	glfwSetKeyCallback( window, &glfw_callback_key_ );
+	glfwSetCursorPosCallback( window, &glfw_callback_motion_ );
 
 	// Set up drawing stuff
 	glfwMakeContextCurrent( window );
@@ -127,15 +142,13 @@ int main() try
 
 	// Global GL state
 	OGL_CHECKPOINT_ALWAYS();
-
-	// TODO: global GL setup goes here
+	glEnable( GL_FRAMEBUFFER_SRGB );
+	glEnable( GL_DEPTH_TEST );
+	glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 
 	OGL_CHECKPOINT_ALWAYS();
 
 	// Get actual framebuffer size.
-	// This can be different from the window size, as standard window
-	// decorations (title bar, borders, ...) may be included in the window size
-	// but not be part of the drawable surface area.
 	int iwidth, iheight;
 	glfwGetFramebufferSize( window, &iwidth, &iheight );
 
@@ -144,12 +157,88 @@ int main() try
 	// Other initialization & loading
 	OGL_CHECKPOINT_ALWAYS();
 
+	// Build shader program
+	ShaderProgram prog({
+		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/default.vert" },
+		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER,"./assets/cw2/default.frag" }
+	});
+
 	// Load the mesh from assets/parlahti.obj
-	ModelMeshData mesh = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
+	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
+	
+	std::print("=== OBJ Loading Info ===\n");
+	std::print("Positions: {}\n", parlahti_model.mesh.positions.size());
+	std::print("Normals: {}\n", parlahti_model.mesh.normals.size());
+	std::print("Texcoords: {}\n", parlahti_model.mesh.texcoords.size());
+	std::print("Materials: {}\n", parlahti_model.materials.size());
+	std::print("Triangle Material IDs: {}\n", parlahti_model.triangleMaterialIds.size());
+	
+	if (parlahti_model.mesh.positions.empty())
+		throw Error("OBJ has no positions");
+	
+	// Debug: print first few positions and normals
+	if (parlahti_model.mesh.positions.size() > 0) {
+		std::print("\nFirst vertex position: ({}, {}, {})\n", 
+			parlahti_model.mesh.positions[0].x,
+			parlahti_model.mesh.positions[0].y,
+			parlahti_model.mesh.positions[0].z);
+	}
+	if (parlahti_model.mesh.normals.size() > 0) {
+		std::print("First vertex normal: ({}, {}, {})\n",
+			parlahti_model.mesh.normals[0].x,
+			parlahti_model.mesh.normals[0].y,
+			parlahti_model.mesh.normals[0].z);
+	}
+	
+	// Debug: print first material
+	if( !parlahti_model.materials.empty() )
+	{
+		auto const& m = parlahti_model.materials[0];
+		std::print("\n=== First Material '{}' ===\n", m.name);
+		std::print("Ka (ambient): ({}, {}, {})\n", m.Ka.x, m.Ka.y, m.Ka.z);
+		std::print("Kd (diffuse): ({}, {}, {})\n", m.Kd.x, m.Kd.y, m.Kd.z);
+		std::print("Ks (specular): ({}, {}, {})\n", m.Ks.x, m.Ks.y, m.Ks.z);
+		std::print("Ns (shininess): {}\n", m.Ns);
+		std::print("Ni (IOR): {}\n", m.Ni);
+		std::print("d (opacity): {}\n", m.d);
+		std::print("illum: {}\n", m.illum);
+	}
+	std::print("========================\n\n");
+	
 	// Upload mesh to GPU
-	GLuint vao = create_vao_mat( mesh );
+	GLuint parlahti_vao = create_vao_mat(parlahti_model);
+	GLsizei vertexCount = static_cast<GLsizei>( parlahti_model.mesh.positions.size() );
+
+	std::print("Vertex count for rendering: {}\n", vertexCount);
+
+	// Setup matrices (declared here, updated per-frame)
+	Mat44f proj = make_perspective_projection(
+		60.f * std::numbers::pi_v<float> / 180.f, 
+		float(iwidth) / float(iheight),
+		0.1f,
+		1000.f  // 增加到1000，之前是200
+	);
+	Mat44f view;
+	Mat44f modelM = kIdentity44f;
+	Mat44f uProjCameraWorld;
+
+	// Normal matrix3x3 (identity for now)
+	float uNormalMatrix[9] = {
+		1.f, 0.f, 0.f,
+		0.f, 1.f, 0.f,
+		0.f, 0.f, 1.f
+	};
+
+	// Light direction (world space)
+	float lightDir[3] = {0.3f, 0.6f, 0.7f};
+
+	// Model transform for the map
+	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });  // 移除下移，保持在原点
 
 	OGL_CHECKPOINT_ALWAYS();
+
+	// Time tracking for smooth camera movement
+	auto lastTime = Clock::now();
 
 	// Main loop
 	while( !glfwWindowShouldClose( window ) )
@@ -157,19 +246,65 @@ int main() try
 		// Let GLFW process events
 		glfwPollEvents();
 		
-		// Check if window was resized.
-		float fbwidth, fbheight;
+		// Delta time for frame-independent movement
+		auto now = Clock::now();
+		float dt = std::chrono::duration_cast<Secondsf>(now - lastTime).count();
+		lastTime = now;
+		
+		// Update camera position based on input state
+		if (camControl.cameraActive)
+		{
+			float moveSpeed = kMovementSpeed * dt;
+			
+			// Forward/Back movement (along view direction in XZ plane)
+			if (camControl.forward)
+			{
+				camControl.posZ += moveSpeed * std::cos(camControl.phi);
+				camControl.posX -= moveSpeed * std::sin(camControl.phi);
+			}
+			if (camControl.back)
+			{
+				camControl.posZ -= moveSpeed * std::cos(camControl.phi);
+				camControl.posX += moveSpeed * std::sin(camControl.phi);
+			}
+			
+			// Left/Right strafe (perpendicular to view direction)
+			if (camControl.left)
+			{
+				camControl.posZ += moveSpeed * std::sin(camControl.phi);
+				camControl.posX += moveSpeed * std::cos(camControl.phi);
+			}
+			if (camControl.right)
+			{
+				camControl.posZ -= moveSpeed * std::sin(camControl.phi);
+				camControl.posX -= moveSpeed * std::cos(camControl.phi);
+			}
+			
+			// Up/Down movement (world Y axis)
+			if (camControl.up)
+				camControl.posY += moveSpeed;
+			if (camControl.down)
+				camControl.posY -= moveSpeed;
+		}
+		
+		// Compute view matrix from camera state
+		// Order: first rotate around Y (phi/yaw), then around X (theta/pitch), then translate
+		Mat44f Rx = make_rotation_x(camControl.theta);
+		Mat44f Ry = make_rotation_y(camControl.phi);
+		Mat44f T = make_translation({-camControl.posX, -camControl.posY, -camControl.posZ});
+		view = Rx * Ry * T;
+		
+		// Update combined matrix
+		uProjCameraWorld = proj * view * modelM;
+		
+		// Check if window was resized
 		{
 			int nwidth, nheight;
 			glfwGetFramebufferSize( window, &nwidth, &nheight );
 
-			fbwidth = float(nwidth);
-			fbheight = float(nheight);
-
 			if( 0 == nwidth || 0 == nheight )
 			{
-				// Window minimized? Pause until it is unminimized.
-				// This is a bit of a hack.
+				// Window minimized - wait until restored
 				do
 				{
 					glfwWaitEvents();
@@ -178,15 +313,44 @@ int main() try
 			}
 
 			glViewport( 0, 0, nwidth, nheight );
+			
+			// Update projection if aspect ratio changed
+			if (nwidth != iwidth || nheight != iheight)
+			{
+				iwidth = nwidth;
+				iheight = nheight;
+				proj = make_perspective_projection(
+					60.f * std::numbers::pi_v<float> / 180.f,
+					float(iwidth) / float(iheight),
+					0.1f,
+					1000.f
+				);
+			}
 		}
-
-		// Update state
-		//TODO: update state
 
 		// Draw scene
 		OGL_CHECKPOINT_DEBUG();
+		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		//TODO: draw frame
+		glUseProgram( prog.programId() );
+
+		Mat44f modelView = view * map2world;
+		Mat44f normalMat4 = transpose(modelView);
+		
+		// Extract 3x3 part
+		uNormalMatrix[0] = normalMat4.v[0]; uNormalMatrix[1] = normalMat4.v[1]; uNormalMatrix[2] = normalMat4.v[2];
+		uNormalMatrix[3] = normalMat4.v[4]; uNormalMatrix[4] = normalMat4.v[5]; uNormalMatrix[5] = normalMat4.v[6];
+		uNormalMatrix[6] = normalMat4.v[8]; uNormalMatrix[7] = normalMat4.v[9]; uNormalMatrix[8] = normalMat4.v[10];
+
+		// Upload uniforms
+		glUniformMatrix4fv(0, 1, GL_TRUE, (uProjCameraWorld * map2world).v );
+		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix );
+		glUniform3fv(2, 1, lightDir );
+
+		// Bind VAO and draw
+		glBindVertexArray( parlahti_vao );
+		glDrawArrays( GL_TRIANGLES, 0, vertexCount );
+		glBindVertexArray( 0 );
 
 		OGL_CHECKPOINT_DEBUG();
 
@@ -194,11 +358,10 @@ int main() try
 		glfwSwapBuffers( window );
 	}
 
-	// Cleanup.
-	//TODO: additional cleanup
-	
+	// Cleanup
 	return 0;
 }
+
 catch( std::exception const& eErr )
 {
 	std::print( stderr, "Top-level Exception ({}):\n", typeid(eErr).name() );
@@ -223,8 +386,73 @@ namespace
 			return;
 		}
 
+		auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
+		if (!cam) return;
+
+		// Space toggles camera control mode
+		if (GLFW_KEY_SPACE == aKey && GLFW_PRESS == aAction)
+		{
+			cam->cameraActive = !cam->cameraActive;
+			
+			if (cam->cameraActive)
+			{
+				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+				std::print("Camera control ACTIVE (WASD/QE to move, mouse to look)\n");
+			}
+			else
+			{
+				glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				std::print("Camera control INACTIVE\n");
+			}
+			return;
+		}
+
+		// Movement keys (only respond when camera is active)
+		if (cam->cameraActive)
+		{
+			bool isPress = (aAction == GLFW_PRESS);
+			bool isRelease = (aAction == GLFW_RELEASE);
+
+			if (GLFW_KEY_S == aKey)
+				cam->forward = isPress ? true : (isRelease ? false : cam->forward);
+			else if (GLFW_KEY_W == aKey)
+				cam->back = isPress ? true : (isRelease ? false : cam->back);
+			else if (GLFW_KEY_D == aKey)
+				cam->left = isPress ? true : (isRelease ? false : cam->left);
+			else if (GLFW_KEY_A == aKey)
+				cam->right = isPress ? true : (isRelease ? false : cam->right);
+			else if (GLFW_KEY_E == aKey)
+				cam->up = isPress ? true : (isRelease ? false : cam->up);
+			else if (GLFW_KEY_Q == aKey)
+				cam->down = isPress ? true : (isRelease ? false : cam->down);
+		}
 	}
 
+	void glfw_callback_motion_( GLFWwindow* aWindow, double aX, double aY )
+	{
+		auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
+		if (!cam) return;
+
+		if (cam->cameraActive)
+		{
+			float dx = float(aX - cam->lastX);
+			float dy = float(aY - cam->lastY);
+
+			// Update yaw (phi) and pitch (theta)
+			cam->phi += dx * kMouseSensitivity;
+			cam->theta += dy * kMouseSensitivity;
+
+			// Clamp pitch to avoid gimbal lock
+			if (cam->theta > kPi_ / 2.f)
+				cam->theta = kPi_ / 2.f;
+			else if (cam->theta < -kPi_ / 2.f)
+				cam->theta = -kPi_ / 2.f;
+		}
+
+		// Always update last position for smooth delta calculation
+		cam->lastX = float(aX);
+		cam->lastY = float(aY);
+	}
 }
 
 namespace
