@@ -169,6 +169,12 @@ int main() try
 		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER,"./assets/cw2/default.frag" }
 	});
 
+	// Build Blinn-Phong shader for landingpad
+	ShaderProgram prog_blinn_phong({
+		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/blinn_phong.vert" },
+		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER, "./assets/cw2/blinn_phong.frag" }
+	});
+
 	// Load the mesh
 	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
 	ModelMeshData landingpad_model = load_wavefront_obj_mat( "./assets/cw2/landingpad.obj" );
@@ -362,14 +368,15 @@ int main() try
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
 		glUniform1i(3, 0);  // Tell shader texture is in unit 0
-		glUniform1i(4, 1);  // Use texture for terrain
 
 		// Draw terrain (parlahti)
 		glBindVertexArray(parlahti_vao);
 		glDrawArrays(GL_TRIANGLES, 0, vertexCount);
 		glBindVertexArray(0);
 
-		// Draw landingpad
+		// Draw landingpad with Blinn-Phong shader
+		glUseProgram(prog_blinn_phong.programId());
+		
 		// Update model-view matrix for landingpad
 		Mat44f landingpadModelView = view * landingpad2world;
 		Mat44f landingpadNormalMat4 = transpose(landingpadModelView);
@@ -382,7 +389,11 @@ int main() try
 		// Upload landingpad uniforms
 		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
 		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
-		glUniform1i(4, 0);  // Don't use texture for landingpad, use material colors
+		glUniform3fv(2, 1, lightDir);
+		
+		// Upload camera position for specular calculation
+		float cameraPos[3] = {camControl.posX, camControl.posY, camControl.posZ};
+		glUniform3fv(3, 1, cameraPos);
 		
 		// Draw landingpad
 		glBindVertexArray(landingpad_vao);
