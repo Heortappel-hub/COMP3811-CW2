@@ -7,7 +7,8 @@ in vec3 vKa;
 in vec3 vKd;
 
 layout(location = 2) uniform vec3 uLightDir;
-layout(location = 3) uniform sampler2D uTexture;  // 新增：纹理采样器
+layout(location = 3) uniform sampler2D uTexture;
+layout(location = 4) uniform int uUseTexture;  // 新增：0 = 使用材质颜色，1 = 使用纹理
 
 layout(location = 0) out vec3 fragColor;
 
@@ -15,21 +16,27 @@ void main() {
     vec3 N = normalize(vNormal);
     vec3 L = normalize(uLightDir);
 
-    // 从纹理采样
-    vec3 textureColor = texture(uTexture, vTexCoord).rgb;
-
-    // 在着色器中调整材质值
-    vec3 ambient = vKa * 0.1;   // 环境光强度：10%
-    vec3 diffuse = vKd * 0.7;   // 漫反射强度：70%
-
-    // Lambert 漫反射光照模型
+    // Lambert 漫反射
     float NdotL = max(dot(N, L), 0.0);
+
+    vec3 color;
     
-    // 光照计算
-    vec3 lighting = ambient + diffuse * NdotL;
+    if (uUseTexture == 1) {
+        // 使用纹理模式
+        vec3 texColor = texture(uTexture, vTexCoord).rgb;
     
-    // 纹理颜色 × 光照 = 最终颜色
-    vec3 color = textureColor * lighting;
+        // 简单光照：环境光 + 漫反射
+        vec3 ambient = texColor * 0.3;         // 30% 环境光
+        vec3 diffuse = texColor * 0.7 * NdotL; // 70% 漫反射
+        
+        color = ambient + diffuse;
+} else {
+// 使用材质颜色模式
+        vec3 ambient = vKa * 0.1;
+     vec3 diffuse = vKd * 0.7 * NdotL;
+        
+   color = ambient + diffuse;
+    }
 
     // 确保颜色在有效范围内
     fragColor = clamp(color, 0.0, 1.0);

@@ -128,7 +128,8 @@ int main() try
 
 	// Set up drawing stuff
 	glfwMakeContextCurrent( window );
-	glfwSwapInterval( 1 ); // V-Sync is on.
+	glfwSwapInterval( 1 ); 
+
 
 	// Initialize GLAD
 	// This will load the OpenGL API. We mustn't make any OpenGL calls before this!
@@ -210,12 +211,12 @@ int main() try
 	GLuint parlahti_Texture = load_texture_2d("./assets/cw2/L4343A-4k.jpeg");
 	std::print("Texture loaded successfully\n");
 
-	// Setup matrices (declared here, updated per-frame)
+	// Setup matrices
 	Mat44f proj = make_perspective_projection(
 		60.f * std::numbers::pi_v<float> / 180.f, 
 		float(iwidth) / float(iheight),
 		0.1f,
-		1000.f  // 增加到1000，之前是200
+		1000.f
 	);
 	Mat44f view;
 	Mat44f modelM = kIdentity44f;
@@ -229,14 +230,13 @@ int main() try
 	};
 
 	// Light direction (world space) - normalized (0, 1, -1)
-	// Original: (0, 1, -1), normalized: (0, 0.707107, -0.707107)
 	float lightDir[3] = {0.0f, 1.0f, -1.0f};
 
 	// Model transform for the map
 	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });
 	
 	// Model transform for landingpad (position below camera)
-	Mat44f landingpad2world = make_translation({ 100.f, -6.0f, 100.f }) * make_scaling(7.f, 7.f, 7.f);
+	Mat44f landingpad2world = make_translation({ 21.5f, 0.7f, 18.f }) * make_scaling(7.f, 7.f, 7.f);
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -362,6 +362,7 @@ int main() try
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
 		glUniform1i(3, 0);  // Tell shader texture is in unit 0
+		glUniform1i(4, 1);  // Use texture for terrain
 
 		// Draw terrain (parlahti)
 		glBindVertexArray(parlahti_vao);
@@ -381,7 +382,7 @@ int main() try
 		// Upload landingpad uniforms
 		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
 		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
-		// Light direction is already set, no need to set again
+		glUniform1i(4, 0);  // Don't use texture for landingpad, use material colors
 		
 		// Draw landingpad
 		glBindVertexArray(landingpad_vao);
