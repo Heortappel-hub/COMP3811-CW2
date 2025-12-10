@@ -21,6 +21,7 @@
 
 #include "simple_mesh.hpp"
 #include "loadobj.hpp"
+#include "texture.hpp"  // 新增：纹理加载
 
 #include <rapidobj/rapidobj.hpp>
 
@@ -169,16 +170,27 @@ int main() try
 
 	// Load the mesh
 	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
+	ModelMeshData landingpad_model = load_wavefront_obj_mat( "./assets/cw2/landingpad.obj" );
 	
-	std::print("=== OBJ Loading Info ===\n");
+	std::print("=== OBJ Loading Info:Parlahti ===\n");
 	std::print("Positions: {}\n", parlahti_model.mesh.positions.size());
 	std::print("Normals: {}\n", parlahti_model.mesh.normals.size());
 	std::print("Texcoords: {}\n", parlahti_model.mesh.texcoords.size());
 	std::print("Materials: {}\n", parlahti_model.materials.size());
 	std::print("Triangle Material IDs: {}\n", parlahti_model.triangleMaterialIds.size());
 	
+	std::print("=== OBJ Loading Info:Landingpad ===\n");
+	std::print("Positions: {}\n", landingpad_model.mesh.positions.size());
+	std::print("Normals: {}\n", landingpad_model.mesh.normals.size());
+	std::print("Texcoords: {}\n", landingpad_model.mesh.texcoords.size());
+	std::print("Materials: {}\n", landingpad_model.materials.size());
+	std::print("Triangle Material IDs: {}\n", landingpad_model.triangleMaterialIds.size());
+
+
 	if (parlahti_model.mesh.positions.empty())
-		throw Error("OBJ has no positions");
+		throw Error("OBJ parlahti has no positions");
+	else if(landingpad_model.mesh.positions.empty())
+		throw Error("OBJ landingpad has no positions");
 	
 	
 	
@@ -186,7 +198,17 @@ int main() try
 	GLuint parlahti_vao = create_vao_mat(parlahti_model);
 	GLsizei vertexCount = static_cast<GLsizei>( parlahti_model.mesh.positions.size() );
 
-	std::print("Vertex count for rendering: {}\n", vertexCount);
+
+	std::print("Vertex count for map rendering: {}\n", vertexCount);
+
+	GLuint landingpad_vao = create_vao_mat(landingpad_model);
+	GLsizei landingpad_vertexCount = static_cast<GLsizei>(landingpad_model.mesh.positions.size());
+
+	std::print("Vertex count for landingpad rendering: {}\n", landingpad_vertexCount);
+
+	// Load texture
+	GLuint parlahti_Texture = load_texture_2d("./assets/cw2/L4343A-4k.jpeg");
+	std::print("Texture loaded successfully\n");
 
 	// Setup matrices (declared here, updated per-frame)
 	Mat44f proj = make_perspective_projection(
@@ -211,7 +233,10 @@ int main() try
 	float lightDir[3] = {0.0f, 1.0f, -1.0f};
 
 	// Model transform for the map
-	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });  // 移除下移，保持在原点
+	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });
+	
+	// Model transform for landingpad (position below camera)
+	Mat44f landingpad2world = make_translation({ 100.f, -6.0f, 100.f }) * make_scaling(7.f, 7.f, 7.f);
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -333,10 +358,35 @@ int main() try
 		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix );
 		glUniform3fv(2, 1, lightDir );
 
-		// Bind VAO and draw
-		glBindVertexArray( parlahti_vao );
-		glDrawArrays( GL_TRIANGLES, 0, vertexCount );
-		glBindVertexArray( 0 );
+		// Bind texture
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
+		glUniform1i(3, 0);  // Tell shader texture is in unit 0
+
+		// Draw terrain (parlahti)
+		glBindVertexArray(parlahti_vao);
+		glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+		glBindVertexArray(0);
+
+		// Draw landingpad
+		// Update model-view matrix for landingpad
+		Mat44f landingpadModelView = view * landingpad2world;
+		Mat44f landingpadNormalMat4 = transpose(landingpadModelView);
+		
+		// Extract 3x3 part for landingpad normal matrix
+		uNormalMatrix[0] = landingpadNormalMat4.v[0]; uNormalMatrix[1] = landingpadNormalMat4.v[1]; uNormalMatrix[2] = landingpadNormalMat4.v[2];
+		uNormalMatrix[3] = landingpadNormalMat4.v[4]; uNormalMatrix[4] = landingpadNormalMat4.v[5]; uNormalMatrix[5] = landingpadNormalMat4.v[6];
+		uNormalMatrix[6] = landingpadNormalMat4.v[8]; uNormalMatrix[7] = landingpadNormalMat4.v[9]; uNormalMatrix[8] = landingpadNormalMat4.v[10];
+
+		// Upload landingpad uniforms
+		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
+		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+		// Light direction is already set, no need to set again
+		
+		// Draw landingpad
+		glBindVertexArray(landingpad_vao);
+		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
+		glBindVertexArray(0);
 
 		OGL_CHECKPOINT_DEBUG();
 

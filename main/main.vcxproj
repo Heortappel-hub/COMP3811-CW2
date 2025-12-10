@@ -101,6 +101,7 @@
     <ClInclude Include="loadobj.hpp" />
     <ClInclude Include="mat_mesh.hpp" />
     <ClInclude Include="simple_mesh.hpp" />
+    <ClInclude Include="texture.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="loadobj.cpp" />
@@ -109,6 +110,7 @@
     <ClCompile Include="simple_mesh.cpp">
       <ObjectFileName>$(IntDir)\simple_mesh1.obj</ObjectFileName>
     </ClCompile>
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\vmlib\vmlib.vcxproj">

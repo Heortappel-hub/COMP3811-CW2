@@ -20,6 +20,7 @@ layout(location = 1) uniform mat3 uNormalMatrix;
 
 // 传给片段着色器
 out vec3 vNormal;
+out vec2 vTexCoord;  // 新增：传递纹理坐标
 out float vNs;
 out vec3 vKa;
 out vec3 vKd;
@@ -27,6 +28,7 @@ out vec3 vKd;
 void main() {
     gl_Position = uProjCameraWorld * vec4(aPosition, 1.0);
     vNormal = normalize(uNormalMatrix * aNormal);
+    vTexCoord = aTexCoord;  // 新增：传递纹理坐标
     vKa = aKa;
     vKd = aKd;
     vNs = aNs;

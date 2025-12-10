@@ -13,11 +13,13 @@
     <ClInclude Include="loadobj.hpp" />
     <ClInclude Include="mat_mesh.hpp" />
     <ClInclude Include="simple_mesh.hpp" />
+    <ClInclude Include="texture.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="loadobj.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mat_mesh.cpp" />
     <ClCompile Include="simple_mesh.cpp" />
+    <ClCompile Include="texture.cpp" />
   </ItemGroup>
 </Project>
