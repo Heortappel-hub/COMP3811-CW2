@@ -3,32 +3,25 @@
 // Inputs from vertex shader
 in vec3 vPosition;
 in vec3 vNormal;
-in vec2 vTexCoord;
 in float vNs;
 in vec3 vKa;
 in vec3 vKd;
 in vec3 vKs;
 
-// Uniforms
+
 layout(location = 2) uniform vec3 uLightDir;
 layout(location = 3) uniform vec3 uCameraPos;
-
-// Output
 layout(location = 0) out vec3 fragColor;
 
 void main() {
-    // Normalize vectors
     vec3 N = normalize(vNormal);
     vec3 L = normalize(uLightDir);
     vec3 V = normalize(uCameraPos - vPosition);
     
-    // Blinn-Phong halfway vector
     vec3 H = normalize(L + V);
     
-    // Ambient component (20%)
-    vec3 ambient = vKa * 0.2;
+    vec3 ambient = vKa * 0.4;    // ≤ª≥Àª·∫‹¡¡
     
-    // Diffuse component (Lambert)
     float NdotL = max(dot(N, L), 0.0);
     vec3 diffuse = vKd * NdotL * 0.6;
     
@@ -48,7 +41,7 @@ void main() {
     
     vec3 finalSpecular = specularColor * specular * 1.5;  // 1.5x boost
     
-    // Combine all lighting components
+
     vec3 color = ambient + diffuse + finalSpecular;
     
     // Output final color

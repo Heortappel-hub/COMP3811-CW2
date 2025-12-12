@@ -17,11 +17,12 @@
 #include "../vmlib/vec4.hpp"
 #include "../vmlib/mat44.hpp"
 
-#include "defaults.hpp"
+#include "defaults.hpp" // map shapder
 
-#include "simple_mesh.hpp"
-#include "loadobj.hpp"
-#include "texture.hpp"  // 新增：纹理加载
+#include "simple_mesh.hpp" // 简单网格
+#include "loadobj.hpp" // 加载 OBJ 模型
+#include "texture.hpp"   // 贴图
+#include "Custom_model.hpp"  // 自定义模型
 
 #include <rapidobj/rapidobj.hpp>
 
@@ -46,14 +47,13 @@ namespace
 		
 		float phi = 0.f, theta = 0.f;
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
-		
 		float lastX = 0.f, lastY = 0.f;
 	};
 	
 	void glfw_callback_error_( int, char const* );
 	void glfw_callback_key_( GLFWwindow*, int, int, int, int );
 	void glfw_callback_motion_( GLFWwindow*, double, double );
-	void glfw_callback_mouse_button_( GLFWwindow*, int, int, int );  // 新增
+	void glfw_callback_mouse_button_( GLFWwindow*, int, int, int );  
 
 	struct GLFWCleanupHelper
 	{
@@ -169,10 +169,16 @@ int main() try
 		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER,"./assets/cw2/default.frag" }
 	});
 
-	// Build Blinn-Phong shader for landingpad
+	// Blinn-Phong shader
 	ShaderProgram prog_blinn_phong({
 		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/blinn_phong.vert" },
 		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER, "./assets/cw2/blinn_phong.frag" }
+	});
+
+	// shader for custom models
+	ShaderProgram prog_color({
+		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/color.vert" },
+		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER, "./assets/cw2/color.frag" }
 	});
 
 	// Load the mesh
@@ -217,6 +223,12 @@ int main() try
 	GLuint parlahti_Texture = load_texture_2d("./assets/cw2/L4343A-4k.jpeg");
 	std::print("Texture loaded successfully\n");
 
+	// Create TARDIS
+	SimpleMeshData tardis_mesh = make_tardis(2.0f, 4.0f, 2.0f);
+	GLuint tardis_vao = create_vao(tardis_mesh);
+	GLsizei tardis_vertexCount = static_cast<GLsizei>(tardis_mesh.positions.size());
+	std::print("Vertex count for TARDIS rendering: {}\n", tardis_vertexCount);
+
 	// Setup matrices
 	Mat44f proj = make_perspective_projection(
 		60.f * std::numbers::pi_v<float> / 180.f, 
@@ -238,11 +250,10 @@ int main() try
 	// Light direction (world space) - normalized (0, 1, -1)
 	float lightDir[3] = {0.0f, 1.0f, -1.0f};
 
-	// Model transform for the map
+	// Model transform
 	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });
-	
-	// Model transform for landingpad (position below camera)
 	Mat44f landingpad2world = make_translation({ 21.5f, 0.7f, 18.f }) * make_scaling(7.f, 7.f, 7.f);
+	Mat44f tardis2world = make_translation({ 30.f, 2.f, 18.f }); 
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -260,7 +271,6 @@ int main() try
 		float dt = std::chrono::duration_cast<Secondsf>(now - lastTime).count();
 		lastTime = now;
 		
-		// Update camera position based on input state
 		if (camControl.cameraActive)
 		{
 			// 速度调节：Shift 加速 3 倍，Ctrl 减速到 1/3
@@ -398,6 +408,24 @@ int main() try
 		// Draw landingpad
 		glBindVertexArray(landingpad_vao);
 		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
+		glBindVertexArray(0);
+
+		// Draw ship
+		glUseProgram(prog_color.programId());
+		
+		Mat44f tardisModelView = view * tardis2world;
+		Mat44f tardisNormalMat4 = transpose(tardisModelView);
+		
+		uNormalMatrix[0] = tardisNormalMat4.v[0]; uNormalMatrix[1] = tardisNormalMat4.v[1]; uNormalMatrix[2] = tardisNormalMat4.v[2];
+		uNormalMatrix[3] = tardisNormalMat4.v[4]; uNormalMatrix[4] = tardisNormalMat4.v[5]; uNormalMatrix[5] = tardisNormalMat4.v[6];
+		uNormalMatrix[6] = tardisNormalMat4.v[8]; uNormalMatrix[7] = tardisNormalMat4.v[9]; uNormalMatrix[8] = tardisNormalMat4.v[10];
+
+		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * tardis2world).v);
+		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+		glUniform3fv(2, 1, lightDir);
+		
+		glBindVertexArray(tardis_vao);
+		glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
 		glBindVertexArray(0);
 
 		OGL_CHECKPOINT_DEBUG();

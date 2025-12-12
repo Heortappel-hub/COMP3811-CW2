@@ -97,6 +97,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Custom_model.hpp" />
     <ClInclude Include="defaults.hpp" />
     <ClInclude Include="loadobj.hpp" />
     <ClInclude Include="mat_mesh.hpp" />

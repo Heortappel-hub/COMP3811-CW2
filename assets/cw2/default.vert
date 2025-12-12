@@ -4,7 +4,7 @@ layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
 layout(location = 2) in vec3 aNormal;
 
-// 常量材质属性（通过 glVertexAttrib* 设置）
+// 常量材质属性
 layout(location = 3) in float aNs;
 layout(location = 4) in vec3 aKa;
 layout(location = 5) in vec3 aKd;

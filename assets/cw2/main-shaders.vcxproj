@@ -50,6 +50,8 @@
   <ItemGroup>
     <None Include="blinn_phong.frag" />
     <None Include="blinn_phong.vert" />
+    <None Include="color.frag" />
+    <None Include="color.vert" />
     <None Include="default.frag" />
     <None Include="default.vert" />
   </ItemGroup>
