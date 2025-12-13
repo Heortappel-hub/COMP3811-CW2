@@ -51,6 +51,11 @@ namespace
 		bool enablePointLight3 = true;   
 		bool enableDirectionalLight = true;
 		
+		// 动画状态
+		bool animationActive = false;    // 动画是否激活
+		bool animationPaused = false;    // 动画是否暂停
+		float animationTime = 0.f;    // 动画时间
+		
 		float phi = 0.f, theta = 0.f;
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
 		float lastX = 0.f, lastY = 0.f;
@@ -103,8 +108,8 @@ int main() try
 	glfwWindowHint( GLFW_DEPTH_BITS, 24 );
 
 #	if !defined(NDEBUG)
-	// When building in debug mode, request an OpenGL debug context. This
-	// enables additional debugging features. However, this can carry extra
+	// When building in debug mode, request an OpenGL debug context.
+	// Enables additional debugging features. However, this can carry extra
 	// overheads. We therefore do not do this for release builds.
 	glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE );
 #	endif // ~ !NDEBUG
@@ -286,7 +291,10 @@ int main() try
 	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });
 	Mat44f landingpad2world = make_translation({ 21.5f, -1.0f, 17.f }) * make_scaling(7.f, 7.f, 7.f);
 	Mat44f landingpad2world_1 = make_translation({ 50.f, -1.f, 50.f }) * make_scaling(6.f, 6.f, 6.f); 
-	Mat44f tardis2world = make_translation({ 21.5f, 1.35f, 17.f }); 
+	
+	// 飞船初始位置：与第一个发射台中心对齐
+	Vec3f tardisInitialPosition{ 21.5f, 1.35f, 17.f };
+	Mat44f tardis2world;  // 将在循环中动态更新
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -304,6 +312,10 @@ int main() try
 		float dt = std::chrono::duration_cast<Secondsf>(now - lastTime).count();
 		lastTime = now;
 		
+		if (dt <= 0.f || dt > 1.f) {
+			dt = 0.016f;  // 默认 60 FPS
+		}
+
 		if (camControl.cameraActive)
 		{
 			// 速度调节：Shift 加速 3 倍，Ctrl 减速到 1/3
@@ -315,7 +327,7 @@ int main() try
 			
 			float moveSpeed = kMovementSpeed * dt * speedMultiplier;
 
-			// Forward/Back movement (along view direction in XZ plane)
+			// Forward/Back movement
 			if (camControl.forward)
 			{
 				camControl.posZ += moveSpeed * std::cos(camControl.phi);
@@ -357,6 +369,86 @@ int main() try
 		// Update combined matrix
 		uProjCameraWorld = proj * view * modelM;
 		
+
+		// Animetion update
+		Vec3f tardisPosition = tardisInitialPosition;  // 初始位置
+		float tardisRotationY = 0.f;  // 飞船朝向角度
+		
+		if (camControl.animationActive && !camControl.animationPaused) {
+			float animSpeed = 0.15f * dt;  // 动画速度
+			camControl.animationTime += animSpeed;
+			
+			// 循环动画
+			if (camControl.animationTime > 1.f) {
+				camControl.animationTime = 0.f;
+			}
+			
+			if (camControl.animationTime < 0.f) {
+				camControl.animationTime = 0.f;
+			}
+			
+			// 慢启动 -> 加速
+			float t = camControl.animationTime;
+			float easedT = t * t * (3.f - 2.f * t);  // Smoothstep
+			
+			if (easedT < 0.f) easedT = 0.f;
+			if (easedT > 1.f) easedT = 1.f;
+			
+			// 螺旋上升路径参数
+			float radius = 15.f;  // 螺旋半径
+			float centerX = tardisInitialPosition.x;  
+			float centerZ = tardisInitialPosition.z; 
+			float heightGain = 30.f;  // 总上升高度
+			
+
+			float currentRadius = radius * easedT;  // 螺旋半径随时间增长（从0到15）
+			
+			// 转 3 圈
+			float angle = easedT * 6.f * kPi_;  
+			
+			if (!std::isfinite(angle)) {
+				angle = 0.f;
+			}
+			
+			// 螺旋上升轨迹
+			tardisPosition.x = centerX + currentRadius * std::cos(angle);
+			tardisPosition.z = centerZ + currentRadius * std::sin(angle);
+			tardisPosition.y = tardisInitialPosition.y + heightGain * easedT;
+			
+			
+			if (!std::isfinite(tardisPosition.x) || !std::isfinite(tardisPosition.y) || !std::isfinite(tardisPosition.z)) {
+				tardisPosition = tardisInitialPosition;  // 回退到初始位置
+			}
+			
+			// 切线方向：速度的方向就是运动轨迹的切线
+			tardisRotationY = angle + kPi_ / 2.f;  // 让飞船朝向运动方向
+			
+
+		}
+		
+		// 更新点光源位置，使其围绕飞船旋转
+		float lightRadius = 2.5f;
+		
+		// 点光源1：红色 (0度位置)
+		pointLight1Pos[0] = tardisPosition.x + lightRadius * std::cos(kPi_ / 2.f);
+		pointLight1Pos[1] = tardisPosition.y + 0.65f;
+		pointLight1Pos[2] = tardisPosition.z + lightRadius * std::sin(kPi_ / 2.f);
+		
+		// 点光源2：绿色 (120度位置)
+		float angle2 = kPi_ / 2.f + 2.0f * kPi_ / 3.0f;
+		pointLight2Pos[0] = tardisPosition.x + lightRadius * std::cos(angle2);
+		pointLight2Pos[1] = tardisPosition.y + 0.65f;
+		pointLight2Pos[2] = tardisPosition.z + lightRadius * std::sin(angle2);
+		
+		// 点光源3：蓝色 (240度位置)
+		float angle3 = kPi_ / 2.f + 4.0f * kPi_ / 3.0f;
+		pointLight3Pos[0] = tardisPosition.x + lightRadius * std::cos(angle3);
+		pointLight3Pos[1] = tardisPosition.y + 0.65f;
+		pointLight3Pos[2] = tardisPosition.z + lightRadius * std::sin(angle3);
+		
+		// 更新飞船变换矩阵：先旋转再平移（让飞船朝向运动方向）
+		tardis2world = make_translation(tardisPosition) * make_rotation_y(tardisRotationY);
+
 		// Check if window was resized
 		{
 			int nwidth, nheight;
@@ -587,6 +679,29 @@ namespace
 			else if (GLFW_KEY_4 == aKey) {
 				cam->enableDirectionalLight = !cam->enableDirectionalLight;
 				std::print("Directional Light: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
+			}
+			// F 键：开始/暂停动画
+			else if (GLFW_KEY_F == aKey) {
+				if (!cam->animationActive) {
+					// 按 F：开始动画
+					cam->animationActive = true;
+					cam->animationPaused = false;
+					cam->animationTime = 0.f;
+					std::print("Animation STARTED (time = {})\n", cam->animationTime);
+				} else {
+					// 后续按 F：切换暂停状态
+					cam->animationPaused = !cam->animationPaused;
+					std::print("Animation {} (time = {})\n", 
+						cam->animationPaused ? "PAUSED" : "RESUMED", 
+						cam->animationTime);
+				}
+			}
+			// R 键：重置动画
+			else if (GLFW_KEY_R == aKey) {
+				cam->animationActive = false;
+				cam->animationPaused = false;
+				cam->animationTime = 0.f;
+				std::print("Animation RESET\n");
 			}
 		}
 
