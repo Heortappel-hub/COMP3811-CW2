@@ -1,4 +1,4 @@
-#include <glad/glad.h>
+Ôªø#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <print>
@@ -19,10 +19,10 @@
 
 #include "defaults.hpp" // map shapder
 
-#include "simple_mesh.hpp" // ºÚµ•Õ¯∏Ò
-#include "loadobj.hpp" // º”‘ÿ OBJ ƒ£–Õ
-#include "texture.hpp"   // Ã˘Õº
-#include "Custom_model.hpp"  // ◊‘∂®“Âƒ£–Õ
+#include "simple_mesh.hpp" // ÁÆÄÂçïÁΩëÊ†º
+#include "loadobj.hpp" // Âä†ËΩΩ OBJ Ê®°Âûã
+#include "texture.hpp"   // Ë¥¥Âõæ
+#include "Custom_model.hpp"  // Ëá™ÂÆö‰πâÊ®°Âûã
 
 #include <rapidobj/rapidobj.hpp>
 
@@ -42,12 +42,20 @@ namespace
 		bool cameraActive = false;
 		bool forward = false, back = false, left = false, right = false;
 		bool up = false, down = false;
-		bool shiftPressed = false;  // ◊∑◊Ÿ Shift º¸◊¥Ã¨
-		bool ctrlPressed = false;   // ◊∑◊Ÿ Ctrl º¸◊¥Ã¨
+		bool shiftPressed = false;  // ËøΩË∏™ Shift ÈîÆÁä∂ÊÄÅ
+		bool ctrlPressed = false;   // ËøΩË∏™ Ctrl ÈîÆÁä∂ÊÄÅ
+		
+		// ÂÖâÊ∫êÂºÄÂÖ≥
+		bool enablePointLight1 = true;   
+		bool enablePointLight2 = true;   
+		bool enablePointLight3 = true;   
+		bool enableDirectionalLight = true;
 		
 		float phi = 0.f, theta = 0.f;
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
 		float lastX = 0.f, lastY = 0.f;
+
+
 	};
 	
 	void glfw_callback_error_( int, char const* );
@@ -124,7 +132,7 @@ int main() try
 	glfwSetWindowUserPointer(window, &camControl);
 	glfwSetKeyCallback( window, &glfw_callback_key_ );
 	glfwSetCursorPosCallback( window, &glfw_callback_motion_ );
-	glfwSetMouseButtonCallback( window, &glfw_callback_mouse_button_ );  // –¬‘ˆ Û±Í∞¥º¸ªÿµ˜
+	glfwSetMouseButtonCallback( window, &glfw_callback_mouse_button_ ); 
 
 	// Set up drawing stuff
 	glfwMakeContextCurrent( window );
@@ -184,6 +192,7 @@ int main() try
 	// Load the mesh
 	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
 	ModelMeshData landingpad_model = load_wavefront_obj_mat( "./assets/cw2/landingpad.obj" );
+	ModelMeshData landingpad_model_1 = load_wavefront_obj_mat("./assets/cw2/landingpad.obj");
 	
 	std::print("=== OBJ Loading Info:Parlahti ===\n");
 	std::print("Positions: {}\n", parlahti_model.mesh.positions.size());
@@ -219,14 +228,20 @@ int main() try
 
 	std::print("Vertex count for landingpad rendering: {}\n", landingpad_vertexCount);
 
+	GLuint landingpad_vao_1 = create_vao_mat(landingpad_model_1);
+	GLsizei landingpad_vertexCount_1 = static_cast<GLsizei>(landingpad_model_1.mesh.positions.size());
+
+	std::print("Vertex count for landingpad rendering: {}\n", landingpad_vertexCount_1);
+
+
 	// Load texture
 	GLuint parlahti_Texture = load_texture_2d("./assets/cw2/L4343A-4k.jpeg");
 	std::print("Texture loaded successfully\n");
 
-	// Create TARDIS
-	SimpleMeshData tardis_mesh = make_tardis(2.0f, 4.0f, 2.0f);
-	GLuint tardis_vao = create_vao(tardis_mesh);
-	GLsizei tardis_vertexCount = static_cast<GLsizei>(tardis_mesh.positions.size());
+	// Create ship with material
+	ModelMeshData tardis_model = make_tardis(2.0f, 4.0f, 2.0f);
+	GLuint tardis_vao = create_vao_mat(tardis_model);
+	GLsizei tardis_vertexCount = static_cast<GLsizei>(tardis_model.mesh.positions.size());
 	std::print("Vertex count for TARDIS rendering: {}\n", tardis_vertexCount);
 
 	// Setup matrices
@@ -240,20 +255,38 @@ int main() try
 	Mat44f modelM = kIdentity44f;
 	Mat44f uProjCameraWorld;
 
-	// Normal matrix3x3 (identity for now)
+	// Normal matrix3x3
 	float uNormalMatrix[9] = {
 		1.f, 0.f, 0.f,
 		0.f, 1.f, 0.f,
 		0.f, 0.f, 1.f
 	};
 
-	// Light direction (world space) - normalized (0, 1, -1)
-	float lightDir[3] = {0.0f, 1.0f, -1.0f};
+
+	Vec3f light_nor = { 0.f, 1.f, -1.f };
+	light_nor = normalize(light_nor);
+	
+	// Light direction (world space) - normalized
+	float lightDir[3] = { light_nor.x, light_nor.y, light_nor.z };
+
+	// ÁÇπÂÖâÊ∫ê1ÔºöÁ∫¢Ëâ≤
+	float pointLight1Pos[3] = {21.5f, 2.f, 15.0f}; 
+	float pointLight1Color[3] = {20.0f, 0.0f, 0.0f};  
+	
+	// ÁÇπÂÖâÊ∫ê2ÔºöÁªøËâ≤
+	float pointLight2Pos[3] = {19.5f, 2.f, 18.5f}; 
+	float pointLight2Color[3] = {0.0f, 20.0f, 0.0f}; 
+	
+	// ÁÇπÂÖâÊ∫ê3ÔºöËìùËâ≤
+	float pointLight3Pos[3] = {23.5f, 2.f, 18.5f}; 
+	float pointLight3Color[3] = {0.0f, 0.0f, 20.0f}; 
 
 	// Model transform
+	// ‰ΩçÁΩÆÂèòÊç¢Áü©Èòµ
 	Mat44f map2world = make_translation({ 0.f, 0.f, 0.f });
-	Mat44f landingpad2world = make_translation({ 21.5f, 0.7f, 18.f }) * make_scaling(7.f, 7.f, 7.f);
-	Mat44f tardis2world = make_translation({ 30.f, 2.f, 18.f }); 
+	Mat44f landingpad2world = make_translation({ 21.5f, -1.0f, 17.f }) * make_scaling(7.f, 7.f, 7.f);
+	Mat44f landingpad2world_1 = make_translation({ 50.f, -1.f, 50.f }) * make_scaling(6.f, 6.f, 6.f); 
+	Mat44f tardis2world = make_translation({ 21.5f, 1.35f, 17.f }); 
 
 	OGL_CHECKPOINT_ALWAYS();
 
@@ -273,12 +306,12 @@ int main() try
 		
 		if (camControl.cameraActive)
 		{
-			// ÀŸ∂»µ˜Ω⁄£∫Shift º”ÀŸ 3 ±∂£¨Ctrl ºıÀŸµΩ 1/3
+			// ÈÄüÂ∫¶Ë∞ÉËäÇÔºöShift Âä†ÈÄü 3 ÂÄçÔºåCtrl ÂáèÈÄüÂà∞ 1/3
 			float speedMultiplier = 1.0f;
 			if (camControl.shiftPressed)
-				speedMultiplier = 3.0f;      // Shift: 3x ÀŸ∂»
+				speedMultiplier = 3.0f;      // Shift: 3x ÈÄüÂ∫¶
 			else if (camControl.ctrlPressed)
-				speedMultiplier = 1.0f / 3.0f; // Ctrl: 1/3x ÀŸ∂»
+				speedMultiplier = 1.0f / 3.0f; // Ctrl: 1/3x ÈÄüÂ∫¶
 			
 			float moveSpeed = kMovementSpeed * dt * speedMultiplier;
 
@@ -398,6 +431,7 @@ int main() try
 
 		// Upload landingpad uniforms
 		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
+		glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world.v); 
 		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
 		glUniform3fv(2, 1, lightDir);
 		
@@ -405,25 +439,96 @@ int main() try
 		float cameraPos[3] = {camControl.posX, camControl.posY, camControl.posZ};
 		glUniform3fv(3, 1, cameraPos);
 		
+		// Upload point lights
+		glUniform3fv(4, 1, pointLight1Pos);
+		glUniform3fv(5, 1, pointLight1Color);
+		glUniform3fv(6, 1, pointLight2Pos);
+		glUniform3fv(7, 1, pointLight2Color);
+		glUniform3fv(8, 1, pointLight3Pos);
+		glUniform3fv(9, 1, pointLight3Color);
+		
+		// Upload light states
+		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+		
 		// Draw landingpad
 		glBindVertexArray(landingpad_vao);
 		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
 		glBindVertexArray(0);
 
-		// Draw ship
-		glUseProgram(prog_color.programId());
+		// Second landingpad
+		glUseProgram(prog_blinn_phong.programId());
 		
+		// Update model-view matrix for second landingpad
+		Mat44f landingpadModelView_1 = view * landingpad2world_1;
+		Mat44f landingpadNormalMat4_1 = transpose(landingpadModelView_1);
+		
+		uNormalMatrix[0] = landingpadNormalMat4_1.v[0]; uNormalMatrix[1] = landingpadNormalMat4_1.v[1]; uNormalMatrix[2] = landingpadNormalMat4_1.v[2];
+		uNormalMatrix[3] = landingpadNormalMat4_1.v[4]; uNormalMatrix[4] = landingpadNormalMat4_1.v[5]; uNormalMatrix[5] = landingpadNormalMat4_1.v[6];
+		uNormalMatrix[6] = landingpadNormalMat4_1.v[8]; uNormalMatrix[7] = landingpadNormalMat4_1.v[9]; uNormalMatrix[8] = landingpadNormalMat4_1.v[10];
+
+		// Upload second landingpad uniforms
+		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world_1).v);
+		glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world_1.v);  
+		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+		glUniform3fv(2, 1, lightDir);
+		glUniform3fv(3, 1, cameraPos);
+		
+		// Upload point lights
+		glUniform3fv(4, 1, pointLight1Pos);
+		glUniform3fv(5, 1, pointLight1Color);
+		glUniform3fv(6, 1, pointLight2Pos);
+		glUniform3fv(7, 1, pointLight2Color);
+		glUniform3fv(8, 1, pointLight3Pos);
+		glUniform3fv(9, 1, pointLight3Color);
+		
+		// Upload light enable states
+		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+		
+		// Draw second landingpad
+		glBindVertexArray(landingpad_vao_1);
+		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount_1);
+		glBindVertexArray(0);
+
+		// Draw TARDIS with Blinn-Phong shader
+		glUseProgram(prog_blinn_phong.programId());
+		
+		// Update model-view matrix for TARDIS
 		Mat44f tardisModelView = view * tardis2world;
 		Mat44f tardisNormalMat4 = transpose(tardisModelView);
 		
+		// Extract 3x3 part for TARDIS normal matrix
 		uNormalMatrix[0] = tardisNormalMat4.v[0]; uNormalMatrix[1] = tardisNormalMat4.v[1]; uNormalMatrix[2] = tardisNormalMat4.v[2];
 		uNormalMatrix[3] = tardisNormalMat4.v[4]; uNormalMatrix[4] = tardisNormalMat4.v[5]; uNormalMatrix[5] = tardisNormalMat4.v[6];
 		uNormalMatrix[6] = tardisNormalMat4.v[8]; uNormalMatrix[7] = tardisNormalMat4.v[9]; uNormalMatrix[8] = tardisNormalMat4.v[10];
 
+		// Upload ship uniforms
 		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * tardis2world).v);
+		glUniformMatrix4fv(14, 1, GL_TRUE, tardis2world.v);
 		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
 		glUniform3fv(2, 1, lightDir);
+		glUniform3fv(3, 1, cameraPos);
 		
+		// Upload point lights
+		glUniform3fv(4, 1, pointLight1Pos);
+		glUniform3fv(5, 1, pointLight1Color);
+		glUniform3fv(6, 1, pointLight2Pos);
+		glUniform3fv(7, 1, pointLight2Color);
+		glUniform3fv(8, 1, pointLight3Pos);
+		glUniform3fv(9, 1, pointLight3Color);
+		
+		// Upload light enable states
+		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+		
+		// Draw TARDIS
 		glBindVertexArray(tardis_vao);
 		glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
 		glBindVertexArray(0);
@@ -465,6 +570,26 @@ namespace
 		auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
 		if (!cam) return;
 
+		// ÂÖâÊ∫êÂºÄÂÖ≥
+		if (aAction == GLFW_PRESS) {
+			if (GLFW_KEY_1 == aKey) {
+				cam->enablePointLight1 = !cam->enablePointLight1;
+				std::print("Point Light 1: {}\n", cam->enablePointLight1 ? "ON" : "OFF");
+			}
+			else if (GLFW_KEY_2 == aKey) {
+				cam->enablePointLight2 = !cam->enablePointLight2;
+				std::print("Point Light 2: {}\n", cam->enablePointLight2 ? "ON" : "OFF");
+			}
+			else if (GLFW_KEY_3 == aKey) {
+				cam->enablePointLight3 = !cam->enablePointLight3;
+				std::print("Point Light 3: {}\n", cam->enablePointLight3 ? "ON" : "OFF");
+			}
+			else if (GLFW_KEY_4 == aKey) {
+				cam->enableDirectionalLight = !cam->enableDirectionalLight;
+				std::print("Directional Light: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
+			}
+		}
+
 		// Movement keys (only respond when camera is active)
 		if (cam->cameraActive)
 		{
@@ -483,9 +608,9 @@ namespace
 			else if (GLFW_KEY_LEFT_CONTROL == aKey || GLFW_KEY_RIGHT_CONTROL == aKey)
 			{
 				if (isPress)
-					cam->ctrlPressed = true;  // –ﬁ∏¥£∫…Ë÷√ ctrlPressed
+					cam->ctrlPressed = true;  
 				else if (isRelease)
-					cam->ctrlPressed = false; // –ﬁ∏¥£∫…Ë÷√ ctrlPressed
+					cam->ctrlPressed = false;
 			}
 			// Movement keys
 			else if (GLFW_KEY_S == aKey)

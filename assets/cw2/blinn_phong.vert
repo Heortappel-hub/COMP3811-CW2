@@ -13,6 +13,7 @@ layout(location = 6) in vec3 aKs;
 // Uniforms
 layout(location = 0) uniform mat4 uProjCameraWorld;
 layout(location = 1) uniform mat3 uNormalMatrix;
+layout(location = 14) uniform mat4 uModelMatrix; // Model matrix for world space position
 
 // Outputs to fragment shader
 out vec3 vPosition;
@@ -24,13 +25,11 @@ out vec3 vKs;
 
 void main() {
     // Transform position to clip space
-    vec4 worldPos = vec4(aPosition, 1.0);
-    gl_Position = uProjCameraWorld * worldPos;
+    vec4 worldPos = uModelMatrix * vec4(aPosition, 1.0);
+    gl_Position = uProjCameraWorld * vec4(aPosition, 1.0);
     
-    // Pass world position to fragment shader (for specular calculation)
-    vPosition = aPosition;
+    vPosition = worldPos.xyz;  // World space position
     
-    // Transform normal to world space
     vNormal = normalize(uNormalMatrix * aNormal);
   
     // Pass through material properties

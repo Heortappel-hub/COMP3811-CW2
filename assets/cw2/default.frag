@@ -22,8 +22,8 @@ void main() {
     vec3 texColor = texture(uTexture, vTexCoord).rgb;
 
  // 简单光照：环境光 + 漫反射
-    vec3 ambient = texColor * 0.3;         // 30% 环境光
-    vec3 diffuse = texColor * 0.7 * NdotL; // 70% 漫反射
+    vec3 ambient = texColor * 0.3;        
+    vec3 diffuse = texColor * 0.7 * NdotL; 
  
     vec3 color = ambient + diffuse;
 

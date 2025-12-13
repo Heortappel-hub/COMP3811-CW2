@@ -17,105 +17,11 @@ auto tardis_blue = rgb_to_float(25, 25, 112);
 auto tardis_white = rgb_to_float(245, 245, 245);
 
 
-//SimpleMeshData make_red_cylinder(std::size_t subdivs = 32)
-//{
-//	SimpleMeshData mesh;
-//	mesh.positions.reserve(subdivs * 6 + subdivs * 6);
-//	mesh.colors.reserve(subdivs * 6 + subdivs * 6);
-//	mesh.normals.reserve(subdivs * 6 + subdivs * 6);   // 法线
-//
-//	Vec3f red = { 1.f, 0.f, 0.f };
-//
-//	 ---- Cylinder shell ----
-//	for (std::size_t i = 0; i < subdivs; ++i)
-//	{
-//		float a0 = (i) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-//		float a1 = (i + 1) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-
-		//    float y0 = std::cos(a0), z0 = std::sin(a0);
-		//    float y1 = std::cos(a1), z1 = std::sin(a1);
-//
-//		float y0 = std::cos(a0), z0 = std::sin(a0);
-//		float y1 = std::cos(a1), z1 = std::sin(a1);
-//
-//		 Norm
-//		Vec3f n0 = { 0.f, y0, z0 };  // 径向向外
-//		Vec3f n1 = { 0.f, y1, z1 };
-//
-//		 tri 1
-//		mesh.positions.emplace_back(Vec3f{ 0.f, y0, z0 });
-//		mesh.positions.emplace_back(Vec3f{ 0.f, y1, z1 });
-//		mesh.positions.emplace_back(Vec3f{ 1.f, y0, z0 });
-//		mesh.normals.emplace_back(n0);
-//		mesh.normals.emplace_back(n1);
-//		mesh.normals.emplace_back(n0);
-//
-//		 tri 2
-//		mesh.positions.emplace_back(Vec3f{ 0.f, y1, z1 });
-//		mesh.positions.emplace_back(Vec3f{ 1.f, y1, z1 });
-//		mesh.positions.emplace_back(Vec3f{ 1.f, y0, z0 });
-//		mesh.normals.emplace_back(n1);
-//		mesh.normals.emplace_back(n1);
-//		mesh.normals.emplace_back(n0);
-//
-//		for (int k = 0; k < 6; ++k) mesh.colors.push_back(red);
-//	}
-//
-//	 ---- Cap at x = 0 (normal pointing left: -X) ----
-//	Vec3f center0{ 0.f, 0.f, 0.f };
-//	Vec3f normalLeft{ -1.f, 0.f, 0.f };
-//	
-//	for (std::size_t i = 0; i < subdivs; ++i)
-//	{
-//		float a0 = (i) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-//		float a1 = (i + 1) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-
-		//    float y0 = std::cos(a0), z0 = std::sin(a0);
-		//    float y1 = std::cos(a1), z1 = std::sin(a1);
-//
-//		mesh.positions.emplace_back(center0);
-//		mesh.positions.emplace_back(Vec3f{ 0.f, y1, z1 });
-//		mesh.positions.emplace_back(Vec3f{ 0.f, y0, z0 });
-//		
-//		mesh.normals.emplace_back(normalLeft);
-//		mesh.normals.emplace_back(normalLeft);
-//		mesh.normals.emplace_back(normalLeft);
-//
-//		for (int k = 0; k < 3; ++k) mesh colors.push_back(red);
-//	}
-//
-//	Vec3f center1{ 1.f, 0.f, 0.f };
-//	Vec3f normalRight{ 1.f, 0.f, 0.f };
-//
-//	for (std::size_t i = 0; i < subdivs; ++i)
-//	{
-//		float a0 = (i) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-//		float a1 = (i + 1) / float(subdivs) * 2.f * std::numbers::pi_v<float>;
-
-		//		float y0 = std::cos(a0), z0 = std::sin(a0);
-		//		float y1 = std::cos(a1), z1 = std::sin(a1);
-//
-//		mesh.positions.emplace_back(center1);
-//		mesh.positions.emplace_back(Vec3f{ 1.f, y0, z0 });
-//		mesh.positions.emplace_back(Vec3f{ 1.f, y1, z1 });
-//		
-//		mesh.normals.emplace_back(normalRight);
-//		mesh.normals.emplace_back(normalRight);
-//		mesh.normals.emplace_back(normalRight);
-//
-//		for (int k = 0; k < 3; ++k) mesh.colors.push_back(red);
-//	}
-//
-//	return mesh;
-//}
-
-
 // 创建可自定义尺寸的长方体
 SimpleMeshData make_cuboid(float width, float height, float depth, Vec3f color = {1.f, 1.f, 1.f})
 {
 	SimpleMeshData mesh;
 	
-	// 半尺寸
 	float hx = width * 0.5f;
 	float hy = height * 0.5f;
 	float hz = depth * 0.5f;
@@ -259,7 +165,7 @@ SimpleMeshData make_cylinder(float length, float radius, Vec3f color, std::size_
 }
 
 
-// 创建圆锥体
+ // 创建圆锥体
 SimpleMeshData make_cone(float height, float radius, Vec3f color, std::size_t subdivs = 32)
 {
 	SimpleMeshData mesh;
@@ -330,158 +236,163 @@ SimpleMeshData make_cone(float height, float radius, Vec3f color, std::size_t su
 }
 
 
-SimpleMeshData make_tardis(float width, float height, float depth)
+ModelMeshData make_tardis(float width, float height, float depth)
 {
-	// 主体：蓝色长方体
-	SimpleMeshData mesh = make_cuboid(width, height, depth, tardis_blue);
+	ModelMeshData model;
 	
-	// 窗户参数
-	float window_size = width * 0.35f; // 窗户尺寸
-	float window_depth = 0.02f; // 窗户厚度很小
-	float window_gap = 0.05f; // 窗户间距
+	// 材质 0：蓝色（主体和顶部长方体、圆锥）
+	MaterialData blue_material;
+	blue_material.name = "tardis_blue";
+	blue_material.Ka = Vec3f{0.05f, 0.05f, 0.1f};   // 环境光：深蓝
+	blue_material.Kd = tardis_blue;  // 漫反射：TARDIS 蓝
+	blue_material.Ks = Vec3f{0.2f, 0.2f, 0.3f};     // 镜面反射：微弱蓝色高光
+	blue_material.Ns = 32.0f;     // 光泽度
+	blue_material.illum = 2;
 	
-	// 计算窗户在每个面上的位置
+	// 材质 1：白色（窗户和圆柱）
+	MaterialData white_material;
+	white_material.name = "tardis_white";
+	white_material.Ka = Vec3f{0.2f, 0.2f, 0.2f}; // 环境光：浅灰
+	white_material.Kd = tardis_white;// 漫反射：白色
+	white_material.Ks = Vec3f{0.5f, 0.5f, 0.5f};     // 镜面反射：强白色高光
+	white_material.Ns = 64.0f;       // 更高光泽度
+	white_material.illum = 2;
+	
+	model.materials.push_back(blue_material);   // 索引 0
+	model.materials.push_back(white_material);  // 索引 1
+	
+	// 1. 主体：蓝色长方体 (36 顶点 = 12 三角形)
+	SimpleMeshData main_body = make_cuboid(width, height, depth, tardis_blue);
+	model.mesh.positions.insert(model.mesh.positions.end(), main_body.positions.begin(), main_body.positions.end());
+	model.mesh.colors.insert(model.mesh.colors.end(), main_body.colors.begin(), main_body.colors.end());
+	model.mesh.normals.insert(model.mesh.normals.end(), main_body.normals.begin(), main_body.normals.end());
+	for (int i = 0; i < 12; ++i) model.triangleMaterialIds.push_back(0);  // 材质 0 (蓝色)
+	
+	// 2. 窗户参数
+	float window_size = width * 0.35f;
+	float window_depth = 0.02f;
+	float window_gap = 0.05f;
 	float offset_from_center = window_size * 0.5f + window_gap * 0.5f;
-	float vertical_offset = height * 0.25f;  // 向上偏移更多，让窗户在上方
+	float vertical_offset = height * 0.25f;
 	
-	// 只有2个窗户位置（左上、右上）
 	float window_positions[2][2] = {
-		{ -offset_from_center, vertical_offset },   // 左上
-		{ offset_from_center, vertical_offset }     // 右上
+		{ -offset_from_center, vertical_offset },
+		{ offset_from_center, vertical_offset }
 	};
 	
-
 	struct FaceConfig {
 		float x_offset;
 		float z_offset;
-		bool is_front_back;  
+		bool is_front_back;
 	};
 	
 	FaceConfig faces[4] = {
-		{ 0.f, depth * 0.501f, true },   
-		{ 0.f, -depth * 0.501f, true },  
+		{ 0.f, depth * 0.501f, true },
+		{ 0.f, -depth * 0.501f, true },
 		{ -width * 0.501f, 0.f, false },
-		{ width * 0.501f, 0.f, false }   
+		{ width * 0.501f, 0.f, false }
 	};
 	
-	// 为每个面创建 2 个窗户
+	// 创建 8 个白色窗户
 	for (int face = 0; face < 4; ++face)
 	{
-		for (int win = 0; win < 2; ++win)  
+		for (int win = 0; win < 2; ++win)
 		{
 			SimpleMeshData window_mesh;
-			
 			if (faces[face].is_front_back)
-			{
-
 				window_mesh = make_cuboid(window_size, window_size, window_depth, tardis_white);
-			}
 			else
-			{
 				window_mesh = make_cuboid(window_depth, window_size, window_size, tardis_white);
-			}
 			
-			// 根据面的方向调整窗户位置
 			for (auto& pos : window_mesh.positions)
 			{
 				float win_x = window_positions[win][0];
 				float win_y = window_positions[win][1];
-				
 				if (faces[face].is_front_back)
 				{
-					// 前面和后面：x 和 y 方向的偏移
 					pos.x += win_x;
 					pos.y += win_y;
 					pos.z += faces[face].z_offset;
 				}
 				else
 				{
-					// 左面和右面：z 和 y 方向的偏移
 					pos.x += faces[face].x_offset;
 					pos.y += win_y;
-					pos.z += win_x; 
+					pos.z += win_x;
 				}
 			}
 			
-			// 合并窗户网格到主网格
-			mesh.positions.insert(mesh.positions.end(), window_mesh.positions.begin(), window_mesh.positions.end());
-			mesh.colors.insert(mesh.colors.end(), window_mesh.colors.begin(), window_mesh.colors.end());
-			mesh.normals.insert(mesh.normals.end(), window_mesh.normals.begin(), window_mesh.normals.end());
+			model.mesh.positions.insert(model.mesh.positions.end(), window_mesh.positions.begin(), window_mesh.positions.end());
+			model.mesh.colors.insert(model.mesh.colors.end(), window_mesh.colors.begin(), window_mesh.colors.end());
+			model.mesh.normals.insert(model.mesh.normals.end(), window_mesh.normals.begin(), window_mesh.normals.end());
+			for (int i = 0; i < 12; ++i) model.triangleMaterialIds.push_back(1);  // 材质 1 (白色)
 		}
 	}
 	
-	float top_width = width * 0.9f;   
-	float top_depth = depth * 0.9f;   
-	float top_height = height / 14.f; 
+	// 3. 顶部蓝色长方体
+	float top_width = width * 0.9f;
+	float top_depth = depth * 0.9f;
+	float top_height = height / 14.f;
 	SimpleMeshData top_box = make_cuboid(top_width, top_height, top_depth, tardis_blue);
+	float box_offset_y = height * 0.5f + top_height * 0.5f;
+	for (auto& pos : top_box.positions) pos.y += box_offset_y;
 	
-	// 将第一层长方体放置在主体顶部
-	float box_offset_y = height * 0.5f + top_height * 0.5f;  // 主体顶部 + 长方体中心偏移
+	model.mesh.positions.insert(model.mesh.positions.end(), top_box.positions.begin(), top_box.positions.end());
+	model.mesh.colors.insert(model.mesh.colors.end(), top_box.colors.begin(), top_box.colors.end());
+	model.mesh.normals.insert(model.mesh.normals.end(), top_box.normals.begin(), top_box.normals.end());
+	for (int i = 0; i < 12; ++i) model.triangleMaterialIds.push_back(0);  // 材质 0 (蓝色)
+
+	float bottom_width = width * 1.1f;
+	float bottom_depth = depth * 1.1f;
+	float bottom_height = height / 14.f;
+	SimpleMeshData bottom_box = make_cuboid(bottom_width, bottom_height, bottom_depth, tardis_blue);
+	float bottom_box_offset_y = -height * 0.5f - bottom_height * 0.5f;
+	for (auto& pos : bottom_box.positions) pos.y += bottom_box_offset_y;
 	
-	for (auto& pos : top_box.positions)
-	{
-		pos.y += box_offset_y;  // 只需要 Y 方向偏移
-	}
+	model.mesh.positions.insert(model.mesh.positions.end(), bottom_box.positions.begin(), bottom_box.positions.end());
+	model.mesh.colors.insert(model.mesh.colors.end(), bottom_box.colors.begin(), bottom_box.colors.end());
+	model.mesh.normals.insert(model.mesh.normals.end(), bottom_box.normals.begin(), bottom_box.normals.end());
+	for (int i = 0; i < 12; ++i) model.triangleMaterialIds.push_back(0);  // 材质 0 (蓝色)
 	
-	// 合并第一层长方体到主网格
-	mesh.positions.insert(mesh.positions.end(), top_box.positions.begin(), top_box.positions.end());
-	mesh.colors.insert(mesh.colors.end(), top_box.colors.begin(), top_box.colors.end());
-	mesh.normals.insert(mesh.normals.end(), top_box.normals.begin(), top_box.normals.end());
-	
-	// 第二层顶部：白色圆柱体（放在长方体顶部）
-	float cylinder_radius = width * 0.13f;  // 圆柱半径
-	float cylinder_height = height * 0.08f;  // 圆柱高度
+	// 4. 白色圆柱
+	float cylinder_radius = width * 0.13f;
+	float cylinder_height = height * 0.08f;
 	SimpleMeshData cylinder_mesh = make_cylinder(cylinder_height, cylinder_radius, tardis_white);
-	
-	// 将圆柱体放置在第一层长方体的顶部
-	float cylinder_offset_y = box_offset_y + top_height * 0.5f;  // 长方体顶部位置
+	float cylinder_offset_y = box_offset_y + top_height * 0.5f;
 	
 	for (auto& pos : cylinder_mesh.positions)
 	{
-		// 旋转：X轴圆柱 -> Y轴圆柱
-		float temp_x = pos.x;
-		float temp_y = pos.y;
-		float temp_z = pos.z;
-		
+		float temp_x = pos.x, temp_y = pos.y, temp_z = pos.z;
 		pos.x = temp_z;
 		pos.y = temp_x + cylinder_offset_y;
 		pos.z = -temp_y;
 	}
-	
-	// 旋转法线
 	for (auto& normal : cylinder_mesh.normals)
 	{
-		float temp_x = normal.x;
-		float temp_y = normal.y;
-		float temp_z = normal.z;
-		
+		float temp_x = normal.x, temp_y = normal.y, temp_z = normal.z;
 		normal.x = temp_z;
 		normal.y = temp_x;
 		normal.z = -temp_y;
 	}
 	
-	// 合并圆柱体网格到主网格
-	mesh.positions.insert(mesh.positions.end(), cylinder_mesh.positions.begin(), cylinder_mesh.positions.end());
-	mesh.colors.insert(mesh.colors.end(), cylinder_mesh.colors.begin(), cylinder_mesh.colors.end());
-	mesh.normals.insert(mesh.normals.end(), cylinder_mesh.normals.begin(), cylinder_mesh.normals.end());
+	size_t cylinder_triangles = cylinder_mesh.positions.size() / 3;
+	model.mesh.positions.insert(model.mesh.positions.end(), cylinder_mesh.positions.begin(), cylinder_mesh.positions.end());
+	model.mesh.colors.insert(model.mesh.colors.end(), cylinder_mesh.colors.begin(), cylinder_mesh.colors.end());
+	model.mesh.normals.insert(model.mesh.normals.end(), cylinder_mesh.normals.begin(), cylinder_mesh.normals.end());
+	for (size_t i = 0; i < cylinder_triangles; ++i) model.triangleMaterialIds.push_back(1);  // 材质 1 (白色)
 	
-	// 第三层顶部：白色圆锥体（放在圆柱顶部，作为天线/灯）
-	float cone_height = height * 0.08f;   // 圆锥高度
-	float cone_radius = width * 0.15f;    // 圆锥底部半径（略小于圆柱）
+	// 5. 蓝色圆锥
+	float cone_height = height * 0.08f;
+	float cone_radius = width * 0.15f;
 	SimpleMeshData cone_mesh = make_cone(cone_height, cone_radius, tardis_blue);
+	float cone_offset_y = cylinder_offset_y + cylinder_height;
+	for (auto& pos : cone_mesh.positions) pos.y += cone_offset_y;
 	
-	// 将圆锥体放置在圆柱的顶部
-	float cone_offset_y = cylinder_offset_y + cylinder_height;  // 圆柱顶部位置
+	size_t cone_triangles = cone_mesh.positions.size() / 3;
+	model.mesh.positions.insert(model.mesh.positions.end(), cone_mesh.positions.begin(), cone_mesh.positions.end());
+	model.mesh.colors.insert(model.mesh.colors.end(), cone_mesh.colors.begin(), cone_mesh.colors.end());
+	model.mesh.normals.insert(model.mesh.normals.end(), cone_mesh.normals.begin(), cone_mesh.normals.end());
+	for (size_t i = 0; i < cone_triangles; ++i) model.triangleMaterialIds.push_back(0);  // 材质 0 (蓝色)
 	
-	for (auto& pos : cone_mesh.positions)
-	{
-		pos.y += cone_offset_y; 
-	}
-	
-	// 合并圆锥体网格到主网格
-	mesh.positions.insert(mesh.positions.end(), cone_mesh.positions.begin(), cone_mesh.positions.end());
-	mesh.colors.insert(mesh.colors.end(), cone_mesh.colors.begin(), cone_mesh.colors.end());
-	mesh.normals.insert(mesh.normals.end(), cone_mesh.normals.begin(), cone_mesh.normals.end());
-	
-	return mesh;
+	return model;
 }
