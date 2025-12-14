@@ -37,6 +37,14 @@ namespace
 	constexpr float kMovementSpeed = 10.f;
 	constexpr float kMouseSensitivity = 0.01f;
 
+	// 相机模式枚举
+	enum class CameraMode
+	{
+		Free = 0,      // 自由相机
+		Follow = 1,    // 跟随相机
+		Ground = 2     // 地面相机
+	};
+
 	struct CamCtrl_
 	{
 		bool cameraActive = false;
@@ -56,11 +64,12 @@ namespace
 		bool animationPaused = false;    // 动画是否暂停
 		float animationTime = 0.f;    // 动画时间
 		
+		// 相机模式
+		CameraMode cameraMode = CameraMode::Free;  // 当前相机模式
+		
 		float phi = 0.f, theta = 0.f;
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
 		float lastX = 0.f, lastY = 0.f;
-
-
 	};
 	
 	void glfw_callback_error_( int, char const* );
@@ -108,8 +117,8 @@ int main() try
 	glfwWindowHint( GLFW_DEPTH_BITS, 24 );
 
 #	if !defined(NDEBUG)
-	// When building in debug mode, request an OpenGL debug context.
-	// Enables additional debugging features. However, this can carry extra
+	// When building in debug mode, request an OpenGL debug context. This
+	// enables additional debugging features. However, this can carry extra
 	// overheads. We therefore do not do this for release builds.
 	glfwWindowHint( GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE );
 #	endif // ~ !NDEBUG
@@ -422,9 +431,77 @@ int main() try
 			
 			// 切线方向：速度的方向就是运动轨迹的切线
 			tardisRotationY = angle + kPi_ / 2.f;  // 让飞船朝向运动方向
-			
-
 		}
+		
+		if (camControl.cameraMode == CameraMode::Follow) {
+			// 跟随相机：固定在飞船侧面，跟随上升
+			float sideDistance = 15.f;  // 侧面距离
+			
+			// 计算相机位置：在飞船右侧（X+），同Z，同Y
+			Vec3f cameraPos;
+			cameraPos.x = tardisPosition.x + sideDistance;  
+			cameraPos.y = tardisPosition.y;         
+			cameraPos.z = tardisPosition.z;     
+			
+			// 计算从相机到飞船的方向向量
+			Vec3f lookDir;
+			lookDir.x = tardisPosition.x - cameraPos.x;  // 向左看（负X方向）
+			lookDir.y = tardisPosition.y - cameraPos.y;  // 应该为0（同高度）
+			lookDir.z = tardisPosition.z - cameraPos.z;  // 应该为0（同Z）
+			
+			// 归一化方向向量
+			float len = std::sqrt(lookDir.x * lookDir.x + lookDir.y * lookDir.y + lookDir.z * lookDir.z);
+			if (len > 0.001f) {
+				lookDir.x /= len;
+				lookDir.y /= len;
+				lookDir.z /= len;
+			}
+			
+			// 计算俯仰角和偏航角
+			float pitch = std::asin(-lookDir.y);
+			float yaw = std::atan2(lookDir.x, lookDir.z);
+			
+			// 构建 view 矩阵
+			Mat44f Rx_follow = make_rotation_x(pitch);
+			Mat44f Ry_follow = make_rotation_y(yaw);
+			Mat44f T_follow = make_translation({-cameraPos.x, -cameraPos.y, -cameraPos.z});
+			view = Rx_follow * Ry_follow * T_follow;
+		}
+		else if (camControl.cameraMode == CameraMode::Ground) {
+			// 地面相机：固定在地面，使用 atan2 计算朝向飞船的角度
+			// 相机位置：在发射台后方偏右，稍高的位置
+			Vec3f groundCameraPos{ 4.f, 3.f, 13.f };  // 相机固定位置
+			
+			// 计算坐标差
+			float deltaY = tardisPosition.y - groundCameraPos.y;
+			float deltaZ = tardisPosition.z - groundCameraPos.z;  // 负值（17-30=-13）
+			float deltaX = tardisPosition.x - groundCameraPos.x;  // 负值（21.5-25=-3.5）
+			
+			// 计算到飞船的距离（水平面）
+			float horizontalDist = std::sqrt(deltaX * deltaX + deltaZ * deltaZ);
+			
+			// 俯仰角：使用水平距离和高度差
+			float pitch = std::atan2(-deltaY, horizontalDist);  // 负号：向下看为正
+			
+			// 偏航角：从相机朝向飞船的方向
+			float yaw = std::atan2(deltaX, deltaZ);
+			
+			// 构建 view 矩阵
+			Mat44f Rx_ground = make_rotation_x(pitch);
+			Mat44f Ry_ground = make_rotation_y(yaw);
+			Mat44f T_ground = make_translation({-groundCameraPos.x, -groundCameraPos.y, -groundCameraPos.z});
+			view = Rx_ground * Ry_ground * T_ground;
+		}
+		else {
+			// 自由相机模式（默认）
+			Mat44f Rx = make_rotation_x(camControl.theta);
+			Mat44f Ry = make_rotation_y(camControl.phi);
+			Mat44f T = make_translation({-camControl.posX, -camControl.posY, -camControl.posZ});
+			view = Rx * Ry * T;
+		}
+		
+		// Update combined matrix
+		uProjCameraWorld = proj * view * modelM;
 		
 		// 更新点光源位置，使其围绕飞船旋转
 		float lightRadius = 2.5f;
@@ -678,7 +755,24 @@ namespace
 			}
 			else if (GLFW_KEY_4 == aKey) {
 				cam->enableDirectionalLight = !cam->enableDirectionalLight;
-				std::print("Directional Light: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
+				std::print("平行光: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
+
+			}
+			// C 键：切换相机模式
+			else if (GLFW_KEY_C == aKey) {
+				// 循环切换
+				int currentMode = static_cast<int>(cam->cameraMode);
+				currentMode = (currentMode + 1) % 3;
+				cam->cameraMode = static_cast<CameraMode>(currentMode);
+				
+				const char* modeName[] = { "Free", "Follow", "Ground" };
+				std::print("Camera Swithch: {}\n", modeName[currentMode]);
+				
+				// 切换到跟随或地面相机时，禁用手动控制
+				if (cam->cameraMode != CameraMode::Free) {
+					cam->cameraActive = false;
+					glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				}
 			}
 			// F 键：开始/暂停动画
 			else if (GLFW_KEY_F == aKey) {
