@@ -65,7 +65,11 @@ namespace
 		float animationTime = 0.f;    // 动画时间
 		
 		// 相机模式
-		CameraMode cameraMode = CameraMode::Free;  // 当前相机模式
+		CameraMode cameraMode = CameraMode::Free;  // 当前相机模式（用于左侧或单屏）
+		
+		// 分屏模式
+		bool splitScreenEnabled = false;   // 是否启用分屏
+		CameraMode rightCameraMode = CameraMode::Follow;  // 右侧相机模式
 		
 		float phi = 0.f, theta = 0.f;
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
@@ -141,6 +145,10 @@ int main() try
 
 	// Camera control state
 	CamCtrl_ camControl;
+	CamCtrl_ camControl_second;  // 第二个相机（用于分屏右侧）
+	
+	// 相机数组（用于分屏循环）
+	std::vector<CamCtrl_*> cameraArray = { &camControl };  // 默认只有一个相机
 
 	// Set up event handling
 	glfwSetWindowUserPointer(window, &camControl);
@@ -426,7 +434,7 @@ int main() try
 			
 			
 			if (!std::isfinite(tardisPosition.x) || !std::isfinite(tardisPosition.y) || !std::isfinite(tardisPosition.z)) {
-				tardisPosition = tardisInitialPosition;  // 回退到初始位置
+				tardisPosition = tardisInitialPosition; 
 			}
 			
 			// 切线方向：速度的方向就是运动轨迹的切线
@@ -438,24 +446,19 @@ int main() try
 			float sideDistance = 15.f;  // 侧面距离
 			
 			// 计算相机位置：在飞船右侧（X+），同Z，同Y
-			Vec3f cameraPos;
-			cameraPos.x = tardisPosition.x + sideDistance;  
-			cameraPos.y = tardisPosition.y;         
-			cameraPos.z = tardisPosition.z;     
+			Vec3f cameraPos{
+				tardisPosition.x + sideDistance,
+				tardisPosition.y,
+				tardisPosition.z
+			};
 			
-			// 计算从相机到飞船的方向向量
-			Vec3f lookDir;
-			lookDir.x = tardisPosition.x - cameraPos.x;  // 向左看（负X方向）
-			lookDir.y = tardisPosition.y - cameraPos.y;  // 应该为0（同高度）
-			lookDir.z = tardisPosition.z - cameraPos.z;  // 应该为0（同Z）
-			
-			// 归一化方向向量
-			float len = std::sqrt(lookDir.x * lookDir.x + lookDir.y * lookDir.y + lookDir.z * lookDir.z);
-			if (len > 0.001f) {
-				lookDir.x /= len;
-				lookDir.y /= len;
-				lookDir.z /= len;
-			}
+			// 计算从相机到飞船的方向向量并归一化
+			Vec3f lookDir{
+				tardisPosition.x - cameraPos.x,
+				tardisPosition.y - cameraPos.y,
+				tardisPosition.z - cameraPos.z
+			};
+			lookDir = normalize(lookDir);  // 使用 normalize 函数
 			
 			// 计算俯仰角和偏航角
 			float pitch = std::asin(-lookDir.y);
@@ -468,20 +471,19 @@ int main() try
 			view = Rx_follow * Ry_follow * T_follow;
 		}
 		else if (camControl.cameraMode == CameraMode::Ground) {
-			// 地面相机：固定在地面，使用 atan2 计算朝向飞船的角度
 			// 相机位置：在发射台后方偏右，稍高的位置
 			Vec3f groundCameraPos{ 4.f, 3.f, 13.f };  // 相机固定位置
 			
 			// 计算坐标差
 			float deltaY = tardisPosition.y - groundCameraPos.y;
-			float deltaZ = tardisPosition.z - groundCameraPos.z;  // 负值（17-30=-13）
-			float deltaX = tardisPosition.x - groundCameraPos.x;  // 负值（21.5-25=-3.5）
+			float deltaZ = tardisPosition.z - groundCameraPos.z; 
+			float deltaX = tardisPosition.x - groundCameraPos.x; 
 			
 			// 计算到飞船的距离（水平面）
 			float horizontalDist = std::sqrt(deltaX * deltaX + deltaZ * deltaZ);
 			
 			// 俯仰角：使用水平距离和高度差
-			float pitch = std::atan2(-deltaY, horizontalDist);  // 负号：向下看为正
+			float pitch = std::atan2(-deltaY, horizontalDist); 
 			
 			// 偏航角：从相机朝向飞船的方向
 			float yaw = std::atan2(deltaX, deltaZ);
@@ -561,146 +563,221 @@ int main() try
 		OGL_CHECKPOINT_DEBUG();
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		glUseProgram( prog_map.programId() );
+		// === 分屏渲染逻辑 ===
+		int numViews = camControl.splitScreenEnabled ? 2 : 1;
+		
+		for (int viewIdx = 0; viewIdx < numViews; ++viewIdx) {
+			// 设置视口和投影矩阵
+			if (camControl.splitScreenEnabled) {
+				int halfWidth = iwidth / 2;
+				if (viewIdx == 0) {
+					// 左半屏
+					glViewport(0, 0, halfWidth, iheight);
+				} else {
+					// 右半屏
+					glViewport(halfWidth, 0, halfWidth, iheight);
+				}
+				// 调整投影矩阵宽高比（使用半宽）
+				proj = make_perspective_projection(
+					60.f * std::numbers::pi_v<float> / 180.f,
+					float(halfWidth) / float(iheight),
+					0.1f,
+					1000.f
+				);
+			} else {
+				// 全屏模式
+				glViewport(0, 0, iwidth, iheight);
+				proj = make_perspective_projection(
+					60.f * std::numbers::pi_v<float> / 180.f,
+					float(iwidth) / float(iheight),
+					0.1f,
+					1000.f
+				);
+			}
+			
+			// 选择当前视口的相机模式
+			CameraMode currentCameraMode = (viewIdx == 0) ? camControl.cameraMode : camControl.rightCameraMode;
+			
+			// 根据相机模式计算view矩阵
+			if (currentCameraMode == CameraMode::Follow) {
+				// 跟随相机
+				float sideDistance = 15.f;
+				Vec3f cameraPos{
+					tardisPosition.x + sideDistance,
+					tardisPosition.y,
+					tardisPosition.z
+				};
+				
+				Vec3f lookDir{
+					tardisPosition.x - cameraPos.x,
+					tardisPosition.y - cameraPos.y,
+					tardisPosition.z - cameraPos.z
+				};
+				lookDir = normalize(lookDir);
+				
+				float pitch = std::asin(-lookDir.y);
+				float yaw = std::atan2(lookDir.x, lookDir.z);
+				
+				Mat44f Rx_follow = make_rotation_x(pitch);
+				Mat44f Ry_follow = make_rotation_y(yaw);
+				Mat44f T_follow = make_translation({-cameraPos.x, -cameraPos.y, -cameraPos.z});
+				view = Rx_follow * Ry_follow * T_follow;
+			}
+			else if (currentCameraMode == CameraMode::Ground) {
+				// 地面相机
+				Vec3f groundCameraPos{ 4.f, 3.f, 13.f };
+				
+				float deltaY = tardisPosition.y - groundCameraPos.y;
+				float deltaZ = tardisPosition.z - groundCameraPos.z;
+				float deltaX = tardisPosition.x - groundCameraPos.x;
+				
+				float horizontalDist = std::sqrt(deltaX * deltaX + deltaZ * deltaZ);
+				float pitch = std::atan2(-deltaY, horizontalDist);
+				float yaw = std::atan2(deltaX, deltaZ);
+				
+				Mat44f Rx_ground = make_rotation_x(pitch);
+				Mat44f Ry_ground = make_rotation_y(yaw);
+				Mat44f T_ground = make_translation({-groundCameraPos.x, -groundCameraPos.y, -groundCameraPos.z});
+				view = Rx_ground * Ry_ground * T_ground;
+			}
+			else {
+				// 自由相机
+				Mat44f Rx = make_rotation_x(camControl.theta);
+				Mat44f Ry = make_rotation_y(camControl.phi);
+				Mat44f T = make_translation({-camControl.posX, -camControl.posY, -camControl.posZ});
+				view = Rx * Ry * T;
+			}
+			
+			// 更新组合矩阵
+			uProjCameraWorld = proj * view * modelM;
 
-		Mat44f modelView = view * map2world;
-		Mat44f normalMat4 = transpose(modelView);
-		
-		// Extract 3x3 part
-		uNormalMatrix[0] = normalMat4.v[0]; uNormalMatrix[1] = normalMat4.v[1]; uNormalMatrix[2] = normalMat4.v[2];
-		uNormalMatrix[3] = normalMat4.v[4]; uNormalMatrix[4] = normalMat4.v[5]; uNormalMatrix[5] = normalMat4.v[6];
-		uNormalMatrix[6] = normalMat4.v[8]; uNormalMatrix[7] = normalMat4.v[9]; uNormalMatrix[8] = normalMat4.v[10];
+			// === 渲染所有对象 ===
+			glUseProgram( prog_map.programId() );
 
-		// Upload uniforms
-		glUniformMatrix4fv(0, 1, GL_TRUE, (uProjCameraWorld * map2world).v );
-		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix );
-		glUniform3fv(2, 1, lightDir );
+			Mat44f modelView = view * map2world;
+			Mat44f normalMat4 = transpose(modelView);
+			
+			// Extract 3x3 part
+			uNormalMatrix[0] = normalMat4.v[0]; uNormalMatrix[1] = normalMat4.v[1]; uNormalMatrix[2] = normalMat4.v[2];
+			uNormalMatrix[3] = normalMat4.v[4]; uNormalMatrix[4] = normalMat4.v[5]; uNormalMatrix[5] = normalMat4.v[6];
+			uNormalMatrix[6] = normalMat4.v[8]; uNormalMatrix[7] = normalMat4.v[9]; uNormalMatrix[8] = normalMat4.v[10];
 
-		// Bind texture
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
-		glUniform1i(3, 0);  // Tell shader texture is in unit 0
+			// Upload uniforms
+			glUniformMatrix4fv(0, 1, GL_TRUE, (uProjCameraWorld * map2world).v );
+			glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix );
+			glUniform3fv(2, 1, lightDir );
 
-		// Draw terrain (parlahti)
-		glBindVertexArray(parlahti_vao);
-		glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-		glBindVertexArray(0);
+			// Bind texture
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
+			glUniform1i(3, 0);
 
-		// Draw landingpad with Blinn-Phong shader
-		glUseProgram(prog_blinn_phong.programId());
-		
-		// Update model-view matrix for landingpad
-		Mat44f landingpadModelView = view * landingpad2world;
-		Mat44f landingpadNormalMat4 = transpose(landingpadModelView);
-		
-		// Extract 3x3 part for landingpad normal matrix
-		uNormalMatrix[0] = landingpadNormalMat4.v[0]; uNormalMatrix[1] = landingpadNormalMat4.v[1]; uNormalMatrix[2] = landingpadNormalMat4.v[2];
-		uNormalMatrix[3] = landingpadNormalMat4.v[4]; uNormalMatrix[4] = landingpadNormalMat4.v[5]; uNormalMatrix[5] = landingpadNormalMat4.v[6];
-		uNormalMatrix[6] = landingpadNormalMat4.v[8]; uNormalMatrix[7] = landingpadNormalMat4.v[9]; uNormalMatrix[8] = landingpadNormalMat4.v[10];
+			// Draw terrain (parlahti)
+			glBindVertexArray(parlahti_vao);
+			glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+			glBindVertexArray(0);
 
-		// Upload landingpad uniforms
-		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
-		glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world.v); 
-		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
-		glUniform3fv(2, 1, lightDir);
-		
-		// Upload camera position for specular calculation
-		float cameraPos[3] = {camControl.posX, camControl.posY, camControl.posZ};
-		glUniform3fv(3, 1, cameraPos);
-		
-		// Upload point lights
-		glUniform3fv(4, 1, pointLight1Pos);
-		glUniform3fv(5, 1, pointLight1Color);
-		glUniform3fv(6, 1, pointLight2Pos);
-		glUniform3fv(7, 1, pointLight2Color);
-		glUniform3fv(8, 1, pointLight3Pos);
-		glUniform3fv(9, 1, pointLight3Color);
-		
-		// Upload light states
-		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
-		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
-		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
-		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
-		
-		// Draw landingpad
-		glBindVertexArray(landingpad_vao);
-		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
-		glBindVertexArray(0);
+			// Draw landingpad with Blinn-Phong shader
+			glUseProgram(prog_blinn_phong.programId());
+			
+			Mat44f landingpadModelView = view * landingpad2world;
+			Mat44f landingpadNormalMat4 = transpose(landingpadModelView);
+			
+			uNormalMatrix[0] = landingpadNormalMat4.v[0]; uNormalMatrix[1] = landingpadNormalMat4.v[1]; uNormalMatrix[2] = landingpadNormalMat4.v[2];
+			uNormalMatrix[3] = landingpadNormalMat4.v[4]; uNormalMatrix[4] = landingpadNormalMat4.v[5]; uNormalMatrix[5] = landingpadNormalMat4.v[6];
+			uNormalMatrix[6] = landingpadNormalMat4.v[8]; uNormalMatrix[7] = landingpadNormalMat4.v[9]; uNormalMatrix[8] = landingpadNormalMat4.v[10];
 
-		// Second landingpad
-		glUseProgram(prog_blinn_phong.programId());
-		
-		// Update model-view matrix for second landingpad
-		Mat44f landingpadModelView_1 = view * landingpad2world_1;
-		Mat44f landingpadNormalMat4_1 = transpose(landingpadModelView_1);
-		
-		uNormalMatrix[0] = landingpadNormalMat4_1.v[0]; uNormalMatrix[1] = landingpadNormalMat4_1.v[1]; uNormalMatrix[2] = landingpadNormalMat4_1.v[2];
-		uNormalMatrix[3] = landingpadNormalMat4_1.v[4]; uNormalMatrix[4] = landingpadNormalMat4_1.v[5]; uNormalMatrix[5] = landingpadNormalMat4_1.v[6];
-		uNormalMatrix[6] = landingpadNormalMat4_1.v[8]; uNormalMatrix[7] = landingpadNormalMat4_1.v[9]; uNormalMatrix[8] = landingpadNormalMat4_1.v[10];
+			glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world).v);
+			glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world.v); 
+			glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+			glUniform3fv(2, 1, lightDir);
+			
+			float cameraPos[3] = {camControl.posX, camControl.posY, camControl.posZ};
+			glUniform3fv(3, 1, cameraPos);
+			
+			glUniform3fv(4, 1, pointLight1Pos);
+			glUniform3fv(5, 1, pointLight1Color);
+			glUniform3fv(6, 1, pointLight2Pos);
+			glUniform3fv(7, 1, pointLight2Color);
+			glUniform3fv(8, 1, pointLight3Pos);
+			glUniform3fv(9, 1, pointLight3Color);
+			
+			glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+			glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+			glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+			glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+			
+			glBindVertexArray(landingpad_vao);
+			glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
+			glBindVertexArray(0);
 
-		// Upload second landingpad uniforms
-		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world_1).v);
-		glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world_1.v);  
-		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
-		glUniform3fv(2, 1, lightDir);
-		glUniform3fv(3, 1, cameraPos);
-		
-		// Upload point lights
-		glUniform3fv(4, 1, pointLight1Pos);
-		glUniform3fv(5, 1, pointLight1Color);
-		glUniform3fv(6, 1, pointLight2Pos);
-		glUniform3fv(7, 1, pointLight2Color);
-		glUniform3fv(8, 1, pointLight3Pos);
-		glUniform3fv(9, 1, pointLight3Color);
-		
-		// Upload light enable states
-		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
-		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
-		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
-		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
-		
-		// Draw second landingpad
-		glBindVertexArray(landingpad_vao_1);
-		glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount_1);
-		glBindVertexArray(0);
+			// Second landingpad
+			glUseProgram(prog_blinn_phong.programId());
+			
+			Mat44f landingpadModelView_1 = view * landingpad2world_1;
+			Mat44f landingpadNormalMat4_1 = transpose(landingpadModelView_1);
+			
+			uNormalMatrix[0] = landingpadNormalMat4_1.v[0]; uNormalMatrix[1] = landingpadNormalMat4_1.v[1]; uNormalMatrix[2] = landingpadNormalMat4_1.v[2];
+			uNormalMatrix[3] = landingpadNormalMat4_1.v[4]; uNormalMatrix[4] = landingpadNormalMat4_1.v[5]; uNormalMatrix[5] = landingpadNormalMat4_1.v[6];
+			uNormalMatrix[6] = landingpadNormalMat4_1.v[8]; uNormalMatrix[7] = landingpadNormalMat4_1.v[9]; uNormalMatrix[8] = landingpadNormalMat4_1.v[10];
 
-		// Draw TARDIS with Blinn-Phong shader
-		glUseProgram(prog_blinn_phong.programId());
-		
-		// Update model-view matrix for TARDIS
-		Mat44f tardisModelView = view * tardis2world;
-		Mat44f tardisNormalMat4 = transpose(tardisModelView);
-		
-		// Extract 3x3 part for TARDIS normal matrix
-		uNormalMatrix[0] = tardisNormalMat4.v[0]; uNormalMatrix[1] = tardisNormalMat4.v[1]; uNormalMatrix[2] = tardisNormalMat4.v[2];
-		uNormalMatrix[3] = tardisNormalMat4.v[4]; uNormalMatrix[4] = tardisNormalMat4.v[5]; uNormalMatrix[5] = tardisNormalMat4.v[6];
-		uNormalMatrix[6] = tardisNormalMat4.v[8]; uNormalMatrix[7] = tardisNormalMat4.v[9]; uNormalMatrix[8] = tardisNormalMat4.v[10];
+			glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * landingpad2world_1).v);
+			glUniformMatrix4fv(14, 1, GL_TRUE, landingpad2world_1.v);
+			glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+			glUniform3fv(2, 1, lightDir);
+			glUniform3fv(3, 1, cameraPos);
+			
+			glUniform3fv(4, 1, pointLight1Pos);
+			glUniform3fv(5, 1, pointLight1Color);
+			glUniform3fv(6, 1, pointLight2Pos);
+			glUniform3fv(7, 1, pointLight2Color);
+			glUniform3fv(8, 1, pointLight3Pos);
+			glUniform3fv(9, 1, pointLight3Color);
+			
+			glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+			glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+			glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+			glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+			
+			glBindVertexArray(landingpad_vao_1);
+			glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount_1);
+			glBindVertexArray(0);
 
-		// Upload ship uniforms
-		glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * tardis2world).v);
-		glUniformMatrix4fv(14, 1, GL_TRUE, tardis2world.v);
-		glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
-		glUniform3fv(2, 1, lightDir);
-		glUniform3fv(3, 1, cameraPos);
+			// Draw TARDIS with Blinn-Phong shader
+			glUseProgram(prog_blinn_phong.programId());
+			
+			Mat44f tardisModelView = view * tardis2world;
+			Mat44f tardisNormalMat4 = transpose(tardisModelView);
+			
+			uNormalMatrix[0] = tardisNormalMat4.v[0]; uNormalMatrix[1] = tardisNormalMat4.v[1]; uNormalMatrix[2] = tardisNormalMat4.v[2];
+			uNormalMatrix[3] = tardisNormalMat4.v[4]; uNormalMatrix[4] = tardisNormalMat4.v[5]; uNormalMatrix[5] = tardisNormalMat4.v[6];
+			uNormalMatrix[6] = tardisNormalMat4.v[8]; uNormalMatrix[7] = tardisNormalMat4.v[9]; uNormalMatrix[8] = tardisNormalMat4.v[10];
+
+			glUniformMatrix4fv(0, 1, GL_TRUE, (proj * view * tardis2world).v);
+			glUniformMatrix4fv(14, 1, GL_TRUE, tardis2world.v);
+			glUniformMatrix3fv(1, 1, GL_TRUE, uNormalMatrix);
+			glUniform3fv(2, 1, lightDir);
+			glUniform3fv(3, 1, cameraPos);
+			
+			glUniform3fv(4, 1, pointLight1Pos);
+			glUniform3fv(5, 1, pointLight1Color);
+			glUniform3fv(6, 1, pointLight2Pos);
+			glUniform3fv(7, 1, pointLight2Color);
+			glUniform3fv(8, 1, pointLight3Pos);
+			glUniform3fv(9, 1, pointLight3Color);
+			
+			glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
+			glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
+			glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
+			glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+			
+			glBindVertexArray(tardis_vao);
+			glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
+			glBindVertexArray(0);
+		}
 		
-		// Upload point lights
-		glUniform3fv(4, 1, pointLight1Pos);
-		glUniform3fv(5, 1, pointLight1Color);
-		glUniform3fv(6, 1, pointLight2Pos);
-		glUniform3fv(7, 1, pointLight2Color);
-		glUniform3fv(8, 1, pointLight3Pos);
-		glUniform3fv(9, 1, pointLight3Color);
-		
-		// Upload light enable states
-		glUniform1i(10, camControl.enablePointLight1 ? 1 : 0);
-		glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
-		glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
-		glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
-		
-		// Draw TARDIS
-		glBindVertexArray(tardis_vao);
-		glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
-		glBindVertexArray(0);
+		// 恢复全屏viewport
+		glViewport(0, 0, iwidth, iheight);
 
 		OGL_CHECKPOINT_DEBUG();
 
@@ -758,20 +835,39 @@ namespace
 				std::print("平行光: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
 
 			}
+			// V 键：切换分屏模式
+			else if (GLFW_KEY_V == aKey) {
+				cam->splitScreenEnabled = !cam->splitScreenEnabled;
+				std::print("Split Screen: {}\n", cam->splitScreenEnabled ? "ON" : "OFF");
+			}
 			// C 键：切换相机模式
 			else if (GLFW_KEY_C == aKey) {
-				// 循环切换
-				int currentMode = static_cast<int>(cam->cameraMode);
-				currentMode = (currentMode + 1) % 3;
-				cam->cameraMode = static_cast<CameraMode>(currentMode);
+				// 获取相机数组指针
+				auto* cameraArrayPtr = static_cast<std::vector<CamCtrl_*>*>(glfwGetWindowUserPointer(aWindow));
 				
-				const char* modeName[] = { "Free", "Follow", "Ground" };
-				std::print("Camera Swithch: {}\n", modeName[currentMode]);
-				
-				// 切换到跟随或地面相机时，禁用手动控制
-				if (cam->cameraMode != CameraMode::Free) {
-					cam->cameraActive = false;
-					glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				// Shift+C：切换右侧相机（如果分屏启用）
+				if (cam->shiftPressed && cam->splitScreenEnabled) {
+					int currentMode = static_cast<int>(cam->rightCameraMode);
+					currentMode = (currentMode + 1) % 3;
+					cam->rightCameraMode = static_cast<CameraMode>(currentMode);
+					
+					const char* modeName[] = { "Free", "Follow", "Ground" };
+					std::print("Right Camera: {}\n", modeName[currentMode]);
+				}
+				// C：切换左侧（或主）相机
+				else {
+					int currentMode = static_cast<int>(cam->cameraMode);
+					currentMode = (currentMode + 1) % 3;
+					cam->cameraMode = static_cast<CameraMode>(currentMode);
+					
+					const char* modeName[] = { "Free", "Follow", "Ground" };
+					std::print("Camera Switch: {}\n", modeName[currentMode]);
+					
+					// 切换到跟随或地面相机时，禁用手动控制
+					if (cam->cameraMode != CameraMode::Free) {
+						cam->cameraActive = false;
+						glfwSetInputMode(aWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+					}
 				}
 			}
 			// F 键：开始/暂停动画
@@ -799,30 +895,30 @@ namespace
 			}
 		}
 
+		// === Shift 和 Ctrl 键状态检测（全局有效）===
+		if (GLFW_KEY_LEFT_SHIFT == aKey || GLFW_KEY_RIGHT_SHIFT == aKey)
+		{
+			if (aAction == GLFW_PRESS)
+				cam->shiftPressed = true;
+			else if (aAction == GLFW_RELEASE)
+				cam->shiftPressed = false;
+		}
+		else if (GLFW_KEY_LEFT_CONTROL == aKey || GLFW_KEY_RIGHT_CONTROL == aKey)
+		{
+			if (aAction == GLFW_PRESS)
+				cam->ctrlPressed = true;
+			else if (aAction == GLFW_RELEASE)
+				cam->ctrlPressed = false;
+		}
+
 		// Movement keys (only respond when camera is active)
 		if (cam->cameraActive)
 		{
 			bool isPress = (aAction == GLFW_PRESS);
 			bool isRelease = (aAction == GLFW_RELEASE);
 
-			// Handle Shift key for speed boost
-			if (GLFW_KEY_LEFT_SHIFT == aKey || GLFW_KEY_RIGHT_SHIFT == aKey)
-			{
-				if (isPress)
-					cam->shiftPressed = true;
-				else if (isRelease)
-					cam->shiftPressed = false;
-			}
-			// Handle Ctrl key for slow motion
-			else if (GLFW_KEY_LEFT_CONTROL == aKey || GLFW_KEY_RIGHT_CONTROL == aKey)
-			{
-				if (isPress)
-					cam->ctrlPressed = true;  
-				else if (isRelease)
-					cam->ctrlPressed = false;
-			}
 			// Movement keys
-			else if (GLFW_KEY_S == aKey)
+			if (GLFW_KEY_S == aKey)
 				cam->forward = isPress ? true : (isRelease ? false : cam->forward);
 			else if (GLFW_KEY_W == aKey)
 				cam->back = isPress ? true : (isRelease ? false : cam->back);
