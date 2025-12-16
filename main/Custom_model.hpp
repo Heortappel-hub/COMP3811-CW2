@@ -243,9 +243,9 @@ ModelMeshData make_tardis(float width, float height, float depth)
 	// 材质 0：蓝色（主体和顶部长方体、圆锥）
 	MaterialData blue_material;
 	blue_material.name = "tardis_blue";
-	blue_material.Ka = Vec3f{0.05f, 0.05f, 0.1f};   // 环境光：深蓝
-	blue_material.Kd = tardis_blue;  // 漫反射：TARDIS 蓝
-	blue_material.Ks = Vec3f{0.2f, 0.2f, 0.3f};     // 镜面反射：微弱蓝色高光
+	blue_material.Ka = Vec3f{0.05f, 0.05f, 0.1f};   // 环境光
+	blue_material.Kd = tardis_blue;  // 漫反射
+	blue_material.Ks = Vec3f{0.2f, 0.2f, 0.3f};     // 镜面反射
 	blue_material.Ns = 32.0f;     // 光泽度
 	blue_material.illum = 2;
 	
@@ -261,7 +261,7 @@ ModelMeshData make_tardis(float width, float height, float depth)
 	model.materials.push_back(blue_material);   // 索引 0
 	model.materials.push_back(white_material);  // 索引 1
 	
-	// 1. 主体：蓝色长方体 (36 顶点 = 12 三角形)
+	// 1. 主体：蓝色长方体
 	SimpleMeshData main_body = make_cuboid(width, height, depth, tardis_blue);
 	model.mesh.positions.insert(model.mesh.positions.end(), main_body.positions.begin(), main_body.positions.end());
 	model.mesh.colors.insert(model.mesh.colors.end(), main_body.colors.begin(), main_body.colors.end());

@@ -23,6 +23,7 @@
 #include "loadobj.hpp" // 加载 OBJ 模型
 #include "texture.hpp"   // 贴图
 #include "Custom_model.hpp"  // 自定义模型
+#include "particle_system.hpp"  // 粒子系统
 
 #include <rapidobj/rapidobj.hpp>
 
@@ -75,7 +76,7 @@ namespace
 		float posX = 100.f, posY = 10.f, posZ = 100.f; 
 		float lastX = 0.f, lastY = 0.f;
 	};
-	
+
 	void glfw_callback_error_( int, char const* );
 	void glfw_callback_key_( GLFWwindow*, int, int, int, int );
 	void glfw_callback_motion_( GLFWwindow*, double, double );
@@ -211,6 +212,12 @@ int main() try
 		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER, "./assets/cw2/color.frag" }
 	});
 
+	// Particle shader
+	ShaderProgram prog_particles({
+		ShaderProgram::ShaderSource{ GL_VERTEX_SHADER, "./assets/cw2/particles.vert" },
+		ShaderProgram::ShaderSource{ GL_FRAGMENT_SHADER, "./assets/cw2/particles.frag" }
+	});
+	
 	// Load the mesh
 	ModelMeshData parlahti_model = load_wavefront_obj_mat( "./assets/cw2/parlahti.obj" );
 	ModelMeshData landingpad_model = load_wavefront_obj_mat( "./assets/cw2/landingpad.obj" );
@@ -265,6 +272,11 @@ int main() try
 	GLuint tardis_vao = create_vao_mat(tardis_model);
 	GLsizei tardis_vertexCount = static_cast<GLsizei>(tardis_model.mesh.positions.size());
 	std::print("Vertex count for TARDIS rendering: {}\n", tardis_vertexCount);
+
+	// 初始化粒子系统
+	ParticleSystem particleSystem(50);  // 最多 50 个粒子
+	particleSystem.initialize("./assets/cw2/cat.png");
+	std::print("Particle system initialized\n");
 
 	// Setup matrices
 	Mat44f proj = make_perspective_projection(
@@ -391,19 +403,23 @@ int main() try
 		Vec3f tardisPosition = tardisInitialPosition;  // 初始位置
 		float tardisRotationY = 0.f;  // 飞船朝向角度
 		
+		// 只有在动画激活且未暂停时才更新 animationTime
 		if (camControl.animationActive && !camControl.animationPaused) {
 			float animSpeed = 0.15f * dt;  // 动画速度
 			camControl.animationTime += animSpeed;
 			
 			// 循环动画
-			if (camControl.animationTime > 1.f) {
-				camControl.animationTime = 0.f;
+		if (camControl.animationTime >= 1.f) {
+				camControl.animationTime = std::fmod(camControl.animationTime, 1.f);
 			}
 			
 			if (camControl.animationTime < 0.f) {
 				camControl.animationTime = 0.f;
 			}
-			
+		}
+		
+		// 无论是否暂停，都根据当前 animationTime 计算位置
+		if (camControl.animationActive) {
 			// 慢启动 -> 加速
 			float t = camControl.animationTime;
 			float easedT = t * t * (3.f - 2.f * t);  // Smoothstep
@@ -417,7 +433,6 @@ int main() try
 			float centerZ = tardisInitialPosition.z; 
 			float heightGain = 30.f;  // 总上升高度
 			
-
 			float currentRadius = radius * easedT;  // 螺旋半径随时间增长（从0到15）
 			
 			// 转 3 圈
@@ -431,7 +446,6 @@ int main() try
 			tardisPosition.x = centerX + currentRadius * std::cos(angle);
 			tardisPosition.z = centerZ + currentRadius * std::sin(angle);
 			tardisPosition.y = tardisInitialPosition.y + heightGain * easedT;
-			
 			
 			if (!std::isfinite(tardisPosition.x) || !std::isfinite(tardisPosition.y) || !std::isfinite(tardisPosition.z)) {
 				tardisPosition = tardisInitialPosition; 
@@ -528,6 +542,19 @@ int main() try
 		// 更新飞船变换矩阵：先旋转再平移（让飞船朝向运动方向）
 		tardis2world = make_translation(tardisPosition) * make_rotation_y(tardisRotationY);
 
+		// === 粒子系统更新 ===
+		// 更新粒子生命周期
+		if (camControl.animationActive && !camControl.animationPaused) {
+			particleSystem.update(dt);
+			
+			// 在飞船底部发射粒子
+			Vec3f emitterPos = tardisPosition;
+			emitterPos.y -= 2.0f;  // 飞船底部（向下偏移）
+			
+			// 每帧发射一个粒子
+			particleSystem.emit(emitterPos, 1.0f);  // 生命周期1秒
+		}
+
 		// Check if window was resized
 		{
 			int nwidth, nheight;
@@ -563,7 +590,7 @@ int main() try
 		OGL_CHECKPOINT_DEBUG();
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-		// === 分屏渲染逻辑 ===
+		// 分屏渲染逻辑
 		int numViews = camControl.splitScreenEnabled ? 2 : 1;
 		
 		for (int viewIdx = 0; viewIdx < numViews; ++viewIdx) {
@@ -573,18 +600,18 @@ int main() try
 				if (viewIdx == 0) {
 					// 左半屏
 					glViewport(0, 0, halfWidth, iheight);
-				} else {
+				}else {
 					// 右半屏
 					glViewport(halfWidth, 0, halfWidth, iheight);
 				}
-				// 调整投影矩阵宽高比（使用半宽）
+				// 调整投影矩阵宽高比
 				proj = make_perspective_projection(
 					60.f * std::numbers::pi_v<float> / 180.f,
 					float(halfWidth) / float(iheight),
 					0.1f,
 					1000.f
 				);
-			} else {
+			} else{
 				// 全屏模式
 				glViewport(0, 0, iwidth, iheight);
 				proj = make_perspective_projection(
@@ -651,7 +678,7 @@ int main() try
 			// 更新组合矩阵
 			uProjCameraWorld = proj * view * modelM;
 
-			// === 渲染所有对象 ===
+			// 渲染所有对象
 			glUseProgram( prog_map.programId() );
 
 			Mat44f modelView = view * map2world;
@@ -774,6 +801,9 @@ int main() try
 			glBindVertexArray(tardis_vao);
 			glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
 			glBindVertexArray(0);
+
+
+			particleSystem.render(prog_particles.programId(), view.v, proj.v);
 		}
 		
 		// 恢复全屏viewport
@@ -832,7 +862,7 @@ namespace
 			}
 			else if (GLFW_KEY_4 == aKey) {
 				cam->enableDirectionalLight = !cam->enableDirectionalLight;
-				std::print("平行光: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
+				std::print("Directional Light: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
 
 			}
 			// V 键：切换分屏模式
@@ -895,7 +925,7 @@ namespace
 			}
 		}
 
-		// === Shift 和 Ctrl 键状态检测（全局有效）===
+		// Shift 和 Ctrl 键状态检测（全局有效）
 		if (GLFW_KEY_LEFT_SHIFT == aKey || GLFW_KEY_RIGHT_SHIFT == aKey)
 		{
 			if (aAction == GLFW_PRESS)
@@ -911,7 +941,7 @@ namespace
 				cam->ctrlPressed = false;
 		}
 
-		// Movement keys (only respond when camera is active)
+		// Movement keys
 		if (cam->cameraActive)
 		{
 			bool isPress = (aAction == GLFW_PRESS);
