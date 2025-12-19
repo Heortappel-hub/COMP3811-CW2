@@ -172,7 +172,6 @@ GLuint create_vao_mat( ModelMeshData const& aMeshData ){
 					size_t vertIdx = tri * 3 + v;
 					if (vertIdx < vertexCount)
 					{
-						// 直接使用原始材质值，不做缩放
 						perVertexKa[vertIdx] = mat.Ka;
 						perVertexKd[vertIdx] = mat.Kd;
 						perVertexKs[vertIdx] = mat.Ks;

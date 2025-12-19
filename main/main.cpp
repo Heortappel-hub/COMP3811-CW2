@@ -18,14 +18,12 @@
 #include "../vmlib/mat44.hpp"
 
 #include "defaults.hpp" // map shapder
-
 #include "simple_mesh.hpp" // 简单网格
 #include "loadobj.hpp" // 加载 OBJ 模型
 #include "texture.hpp"   // 贴图
 #include "Custom_model.hpp"  // 自定义模型
 #include "particle_system.hpp"  // 粒子系统
 
-#include <rapidobj/rapidobj.hpp>
 
 
 
@@ -38,13 +36,87 @@ namespace
 	constexpr float kMovementSpeed = 10.f;
 	constexpr float kMouseSensitivity = 0.01f;
 
+	// GPU Performance Timing(Comment out to disable)
+	#define ENABLE_GPU_TIMING
+	
 	// 相机模式枚举
 	enum class CameraMode
 	{
-		Free = 0,      // 自由相机
+		Free = 0,// 自由相机
 		Follow = 1,    // 跟随相机
 		Ground = 2     // 地面相机
 	};
+
+#ifdef ENABLE_GPU_TIMING
+	// GPU计时查询结构
+	struct GPUTimingQueries
+	{
+		GLuint frameStart;
+		GLuint frameEnd;
+		GLuint mapStart;
+		GLuint mapEnd;
+		GLuint landingpadStart;
+		GLuint landingpadEnd;
+		GLuint shipStart;
+		GLuint shipEnd;
+		
+		bool initialized = false;
+		
+		void init()
+		{
+			glGenQueries(1, &frameStart);
+			glGenQueries(1, &frameEnd);
+			glGenQueries(1, &mapStart);
+			glGenQueries(1, &mapEnd);
+			glGenQueries(1, &landingpadStart);
+			glGenQueries(1, &landingpadEnd);
+			glGenQueries(1, &shipStart);
+			glGenQueries(1, &shipEnd);
+			initialized = true;
+		}
+		
+		void cleanup()
+		{
+			if (initialized)
+			{
+				glDeleteQueries(1, &frameStart);
+				glDeleteQueries(1, &frameEnd);
+				glDeleteQueries(1, &mapStart);
+				glDeleteQueries(1, &mapEnd);
+				glDeleteQueries(1, &landingpadStart);
+				glDeleteQueries(1, &landingpadEnd);
+				glDeleteQueries(1, &shipStart);
+				glDeleteQueries(1, &shipEnd);
+				initialized = false;
+			}
+		}
+		
+		bool tryRetrieveResults(double& frameTimeNs, double& mapTimeNs, 
+		  double& landingpadTimeNs, double& tardisTimeNs)
+		{
+			GLuint64 tsFrameStart, tsFrameEnd;
+			GLuint64 tsMapStart, tsMapEnd;
+			GLuint64 tsLandingpadStart, tsLandingpadEnd;
+			GLuint64 tsshipStart, tsshipEnd;
+			
+			glGetQueryObjectui64v(frameStart, GL_QUERY_RESULT, &tsFrameStart);
+			glGetQueryObjectui64v(frameEnd, GL_QUERY_RESULT, &tsFrameEnd);
+			glGetQueryObjectui64v(mapStart, GL_QUERY_RESULT, &tsMapStart);
+			glGetQueryObjectui64v(mapEnd, GL_QUERY_RESULT, &tsMapEnd);
+			glGetQueryObjectui64v(landingpadStart, GL_QUERY_RESULT, &tsLandingpadStart);
+			glGetQueryObjectui64v(landingpadEnd, GL_QUERY_RESULT, &tsLandingpadEnd);
+			glGetQueryObjectui64v(shipStart, GL_QUERY_RESULT, &tsshipStart);
+			glGetQueryObjectui64v(shipEnd, GL_QUERY_RESULT, &tsshipEnd);
+			
+			frameTimeNs = static_cast<double>(tsFrameEnd - tsFrameStart);
+			mapTimeNs = static_cast<double>(tsMapEnd - tsMapStart);
+			landingpadTimeNs = static_cast<double>(tsLandingpadEnd - tsLandingpadStart);
+			tardisTimeNs = static_cast<double>(tsshipEnd - tsshipStart);
+			
+			return true;
+		}
+	};
+#endif
 
 	struct CamCtrl_
 	{
@@ -146,10 +218,6 @@ int main() try
 
 	// Camera control state
 	CamCtrl_ camControl;
-	CamCtrl_ camControl_second;  // 第二个相机（用于分屏右侧）
-	
-	// 相机数组（用于分屏循环）
-	std::vector<CamCtrl_*> cameraArray = { &camControl };  // 默认只有一个相机
 
 	// Set up event handling
 	glfwSetWindowUserPointer(window, &camControl);
@@ -223,19 +291,6 @@ int main() try
 	ModelMeshData landingpad_model = load_wavefront_obj_mat( "./assets/cw2/landingpad.obj" );
 	ModelMeshData landingpad_model_1 = load_wavefront_obj_mat("./assets/cw2/landingpad.obj");
 	
-	std::print("=== OBJ Loading Info:Parlahti ===\n");
-	std::print("Positions: {}\n", parlahti_model.mesh.positions.size());
-	std::print("Normals: {}\n", parlahti_model.mesh.normals.size());
-	std::print("Texcoords: {}\n", parlahti_model.mesh.texcoords.size());
-	std::print("Materials: {}\n", parlahti_model.materials.size());
-	std::print("Triangle Material IDs: {}\n", parlahti_model.triangleMaterialIds.size());
-	
-	std::print("=== OBJ Loading Info:Landingpad ===\n");
-	std::print("Positions: {}\n", landingpad_model.mesh.positions.size());
-	std::print("Normals: {}\n", landingpad_model.mesh.normals.size());
-	std::print("Texcoords: {}\n", landingpad_model.mesh.texcoords.size());
-	std::print("Materials: {}\n", landingpad_model.materials.size());
-	std::print("Triangle Material IDs: {}\n", landingpad_model.triangleMaterialIds.size());
 
 
 	if (parlahti_model.mesh.positions.empty())
@@ -250,33 +305,26 @@ int main() try
 	GLsizei vertexCount = static_cast<GLsizei>( parlahti_model.mesh.positions.size() );
 
 
-	std::print("Vertex count for map rendering: {}\n", vertexCount);
-
 	GLuint landingpad_vao = create_vao_mat(landingpad_model);
 	GLsizei landingpad_vertexCount = static_cast<GLsizei>(landingpad_model.mesh.positions.size());
 
-	std::print("Vertex count for landingpad rendering: {}\n", landingpad_vertexCount);
 
 	GLuint landingpad_vao_1 = create_vao_mat(landingpad_model_1);
 	GLsizei landingpad_vertexCount_1 = static_cast<GLsizei>(landingpad_model_1.mesh.positions.size());
 
-	std::print("Vertex count for landingpad rendering: {}\n", landingpad_vertexCount_1);
 
 
 	// Load texture
 	GLuint parlahti_Texture = load_texture_2d("./assets/cw2/L4343A-4k.jpeg");
-	std::print("Texture loaded successfully\n");
 
 	// Create ship with material
 	ModelMeshData tardis_model = make_tardis(2.0f, 4.0f, 2.0f);
 	GLuint tardis_vao = create_vao_mat(tardis_model);
 	GLsizei tardis_vertexCount = static_cast<GLsizei>(tardis_model.mesh.positions.size());
-	std::print("Vertex count for TARDIS rendering: {}\n", tardis_vertexCount);
 
 	// 初始化粒子系统
-	ParticleSystem particleSystem(50);  // 最多 50 个粒子
+	ParticleSystem particleSystem(50); 
 	particleSystem.initialize("./assets/cw2/cat.png");
-	std::print("Particle system initialized\n");
 
 	// Setup matrices
 	Mat44f proj = make_perspective_projection(
@@ -329,6 +377,20 @@ int main() try
 
 	// Time tracking for smooth camera movement
 	auto lastTime = Clock::now();
+
+#ifdef ENABLE_GPU_TIMING
+	// 初始化GPU计时查询
+	GPUTimingQueries gpuTimers;
+	gpuTimers.init();
+	
+	// 统计变量 - 每Time_interval帧输出一次
+	int gpuTimingCounter = 0;
+	constexpr int Time_interval = 0;
+	double sumFrameTime = 0.0;
+	double sumMapTime = 0.0;
+	double sumLandingpadTime = 0.0;
+	double sumTardisTime = 0.0;
+#endif
 
 	// Main loop
 	while( !glfwWindowShouldClose( window ) )
@@ -403,7 +465,6 @@ int main() try
 		Vec3f tardisPosition = tardisInitialPosition;  // 初始位置
 		float tardisRotationY = 0.f;  // 飞船朝向角度
 		
-		// 只有在动画激活且未暂停时才更新 animationTime
 		if (camControl.animationActive && !camControl.animationPaused) {
 			float animSpeed = 0.15f * dt;  // 动画速度
 			camControl.animationTime += animSpeed;
@@ -418,11 +479,10 @@ int main() try
 			}
 		}
 		
-		// 无论是否暂停，都根据当前 animationTime 计算位置
 		if (camControl.animationActive) {
 			// 慢启动 -> 加速
 			float t = camControl.animationTime;
-			float easedT = t * t * (3.f - 2.f * t);  // Smoothstep
+			float easedT = t * t * (3.f - 2.f * t); 
 			
 			if (easedT < 0.f) easedT = 0.f;
 			if (easedT > 1.f) easedT = 1.f;
@@ -433,7 +493,7 @@ int main() try
 			float centerZ = tardisInitialPosition.z; 
 			float heightGain = 30.f;  // 总上升高度
 			
-			float currentRadius = radius * easedT;  // 螺旋半径随时间增长（从0到15）
+			float currentRadius = radius * easedT;  // 螺旋半径随时间增长
 			
 			// 转 3 圈
 			float angle = easedT * 6.f * kPi_;  
@@ -451,7 +511,6 @@ int main() try
 				tardisPosition = tardisInitialPosition; 
 			}
 			
-			// 切线方向：速度的方向就是运动轨迹的切线
 			tardisRotationY = angle + kPi_ / 2.f;  // 让飞船朝向运动方向
 		}
 		
@@ -472,7 +531,7 @@ int main() try
 				tardisPosition.y - cameraPos.y,
 				tardisPosition.z - cameraPos.z
 			};
-			lookDir = normalize(lookDir);  // 使用 normalize 函数
+			lookDir = normalize(lookDir);
 			
 			// 计算俯仰角和偏航角
 			float pitch = std::asin(-lookDir.y);
@@ -485,7 +544,6 @@ int main() try
 			view = Rx_follow * Ry_follow * T_follow;
 		}
 		else if (camControl.cameraMode == CameraMode::Ground) {
-			// 相机位置：在发射台后方偏右，稍高的位置
 			Vec3f groundCameraPos{ 4.f, 3.f, 13.f };  // 相机固定位置
 			
 			// 计算坐标差
@@ -493,10 +551,9 @@ int main() try
 			float deltaZ = tardisPosition.z - groundCameraPos.z; 
 			float deltaX = tardisPosition.x - groundCameraPos.x; 
 			
-			// 计算到飞船的距离（水平面）
+			// 计算到飞船的距离
 			float horizontalDist = std::sqrt(deltaX * deltaX + deltaZ * deltaZ);
 			
-			// 俯仰角：使用水平距离和高度差
 			float pitch = std::atan2(-deltaY, horizontalDist); 
 			
 			// 偏航角：从相机朝向飞船的方向
@@ -509,50 +566,47 @@ int main() try
 			view = Rx_ground * Ry_ground * T_ground;
 		}
 		else {
-			// 自由相机模式（默认）
+			// 自由相机模式
 			Mat44f Rx = make_rotation_x(camControl.theta);
 			Mat44f Ry = make_rotation_y(camControl.phi);
 			Mat44f T = make_translation({-camControl.posX, -camControl.posY, -camControl.posZ});
 			view = Rx * Ry * T;
 		}
 		
-		// Update combined matrix
 		uProjCameraWorld = proj * view * modelM;
 		
-		// 更新点光源位置，使其围绕飞船旋转
 		float lightRadius = 2.5f;
 		
-		// 点光源1：红色 (0度位置)
+		// 点光源1：红色
 		pointLight1Pos[0] = tardisPosition.x + lightRadius * std::cos(kPi_ / 2.f);
 		pointLight1Pos[1] = tardisPosition.y + 0.65f;
 		pointLight1Pos[2] = tardisPosition.z + lightRadius * std::sin(kPi_ / 2.f);
 		
-		// 点光源2：绿色 (120度位置)
+		// 点光源2：绿色
 		float angle2 = kPi_ / 2.f + 2.0f * kPi_ / 3.0f;
 		pointLight2Pos[0] = tardisPosition.x + lightRadius * std::cos(angle2);
 		pointLight2Pos[1] = tardisPosition.y + 0.65f;
 		pointLight2Pos[2] = tardisPosition.z + lightRadius * std::sin(angle2);
 		
-		// 点光源3：蓝色 (240度位置)
+		// 点光源3：蓝色
 		float angle3 = kPi_ / 2.f + 4.0f * kPi_ / 3.0f;
 		pointLight3Pos[0] = tardisPosition.x + lightRadius * std::cos(angle3);
 		pointLight3Pos[1] = tardisPosition.y + 0.65f;
 		pointLight3Pos[2] = tardisPosition.z + lightRadius * std::sin(angle3);
 		
-		// 更新飞船变换矩阵：先旋转再平移（让飞船朝向运动方向）
+		// 更新飞船变换矩阵：先旋转再平移
 		tardis2world = make_translation(tardisPosition) * make_rotation_y(tardisRotationY);
 
-		// === 粒子系统更新 ===
 		// 更新粒子生命周期
 		if (camControl.animationActive && !camControl.animationPaused) {
 			particleSystem.update(dt);
 			
 			// 在飞船底部发射粒子
 			Vec3f emitterPos = tardisPosition;
-			emitterPos.y -= 2.0f;  // 飞船底部（向下偏移）
+			emitterPos.y -= 2.0f; 
 			
 			// 每帧发射一个粒子
-			particleSystem.emit(emitterPos, 1.0f);  // 生命周期1秒
+			particleSystem.emit(emitterPos, 1.0f);  // 生命周期1s
 		}
 
 		// Check if window was resized
@@ -589,6 +643,13 @@ int main() try
 		// Draw scene
 		OGL_CHECKPOINT_DEBUG();
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+#ifdef ENABLE_GPU_TIMING
+		if (!camControl.splitScreenEnabled)
+		{
+			glQueryCounter(gpuTimers.frameStart, GL_TIMESTAMP);
+		}
+#endif
 
 		// 分屏渲染逻辑
 		int numViews = camControl.splitScreenEnabled ? 2 : 1;
@@ -628,9 +689,8 @@ int main() try
 			// 根据相机模式计算view矩阵
 			if (currentCameraMode == CameraMode::Follow) {
 				// 跟随相机
-				float sideDistance = 15.f;
 				Vec3f cameraPos{
-					tardisPosition.x + sideDistance,
+					tardisPosition.x + 15.f,
 					tardisPosition.y,
 					tardisPosition.z
 				};
@@ -684,7 +744,6 @@ int main() try
 			Mat44f modelView = view * map2world;
 			Mat44f normalMat4 = transpose(modelView);
 			
-			// Extract 3x3 part
 			uNormalMatrix[0] = normalMat4.v[0]; uNormalMatrix[1] = normalMat4.v[1]; uNormalMatrix[2] = normalMat4.v[2];
 			uNormalMatrix[3] = normalMat4.v[4]; uNormalMatrix[4] = normalMat4.v[5]; uNormalMatrix[5] = normalMat4.v[6];
 			uNormalMatrix[6] = normalMat4.v[8]; uNormalMatrix[7] = normalMat4.v[9]; uNormalMatrix[8] = normalMat4.v[10];
@@ -699,10 +758,24 @@ int main() try
 			glBindTexture(GL_TEXTURE_2D, parlahti_Texture);
 			glUniform1i(3, 0);
 
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.mapStart, GL_TIMESTAMP);
+			}
+#endif
+
 			// Draw terrain (parlahti)
 			glBindVertexArray(parlahti_vao);
 			glDrawArrays(GL_TRIANGLES, 0, vertexCount);
 			glBindVertexArray(0);
+
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.mapEnd, GL_TIMESTAMP);
+			}
+#endif
 
 			// Draw landingpad with Blinn-Phong shader
 			glUseProgram(prog_blinn_phong.programId());
@@ -733,6 +806,13 @@ int main() try
 			glUniform1i(11, camControl.enablePointLight2 ? 1 : 0);
 			glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
 			glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
+			
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.landingpadStart, GL_TIMESTAMP);
+			}
+#endif
 			
 			glBindVertexArray(landingpad_vao);
 			glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount);
@@ -770,6 +850,13 @@ int main() try
 			glDrawArrays(GL_TRIANGLES, 0, landingpad_vertexCount_1);
 			glBindVertexArray(0);
 
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.landingpadEnd, GL_TIMESTAMP);
+			}
+#endif
+
 			// Draw TARDIS with Blinn-Phong shader
 			glUseProgram(prog_blinn_phong.programId());
 			
@@ -798,22 +885,78 @@ int main() try
 			glUniform1i(12, camControl.enablePointLight3 ? 1 : 0);
 			glUniform1i(13, camControl.enableDirectionalLight ? 1 : 0);
 			
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.shipStart, GL_TIMESTAMP);
+			}
+#endif
+			
 			glBindVertexArray(tardis_vao);
 			glDrawArrays(GL_TRIANGLES, 0, tardis_vertexCount);
 			glBindVertexArray(0);
 
+#ifdef ENABLE_GPU_TIMING
+			if (!camControl.splitScreenEnabled)
+			{
+				glQueryCounter(gpuTimers.shipEnd, GL_TIMESTAMP);
+			}
+#endif
 
 			particleSystem.render(prog_particles.programId(), view.v, proj.v);
 		}
 		
-		// 恢复全屏viewport
 		glViewport(0, 0, iwidth, iheight);
+
+#ifdef ENABLE_GPU_TIMING
+		if (!camControl.splitScreenEnabled)
+		{
+			glQueryCounter(gpuTimers.frameEnd, GL_TIMESTAMP);
+			
+			double frameTimeNs, mapTimeNs, landingpadTimeNs, tardisTimeNs;
+			if (gpuTimers.tryRetrieveResults(frameTimeNs, mapTimeNs, landingpadTimeNs, tardisTimeNs))
+			{
+				sumFrameTime += frameTimeNs;
+				sumMapTime += mapTimeNs;
+				sumLandingpadTime += landingpadTimeNs;
+				sumTardisTime += tardisTimeNs;
+				gpuTimingCounter++;
+				
+				// Output every 60 frames
+				if (gpuTimingCounter >= Time_interval)
+				{
+					double avgFrame = sumFrameTime / gpuTimingCounter;
+					double avgMap = sumMapTime / gpuTimingCounter;
+					double avgLandingpad = sumLandingpadTime / gpuTimingCounter;
+					double avgTardis = sumTardisTime / gpuTimingCounter;
+					
+					std::print(" GPU Timing Average ({} frames)\n", gpuTimingCounter);
+					std::print("  Frame:      {:.0f} ns\n", avgFrame);
+					std::print("  Map:     {:.0f} ns\n", avgMap);
+					std::print("  Landingpad: {:.0f} ns\n", avgLandingpad);
+					std::print("  Ship:     {:.0f} ns\n", avgTardis);
+					std::print("=====================================\n\n");
+					
+					// reset counters
+					gpuTimingCounter = 0;
+					sumFrameTime = 0.0;
+					sumMapTime = 0.0;
+					sumLandingpadTime = 0.0;
+					sumTardisTime = 0.0;
+				}
+			}
+		}
+#endif
 
 		OGL_CHECKPOINT_DEBUG();
 
 		// Display results
 		glfwSwapBuffers( window );
 	}
+
+#ifdef ENABLE_GPU_TIMING
+	gpuTimers.cleanup();
+#endif
 
 	// Cleanup
 	return 0;
@@ -834,24 +977,24 @@ namespace
 	{
 		std::print( stderr, "GLFW error: {} ({})\n", aErrDesc, aErrNum );
 	}
-
+				
 	void glfw_callback_key_( GLFWwindow* aWindow, int aKey, int, int aAction, int )
-	{
+				{
 		if( GLFW_KEY_ESCAPE == aKey && GLFW_PRESS == aAction )
 		{
 			glfwSetWindowShouldClose( aWindow, GLFW_TRUE );
 			return;
 		}
-
+					
 		auto* cam = static_cast<CamCtrl_*>(glfwGetWindowUserPointer(aWindow));
 		if (!cam) return;
-
+					
 		// 光源开关
 		if (aAction == GLFW_PRESS) {
 			if (GLFW_KEY_1 == aKey) {
 				cam->enablePointLight1 = !cam->enablePointLight1;
 				std::print("Point Light 1: {}\n", cam->enablePointLight1 ? "ON" : "OFF");
-			}
+				}
 			else if (GLFW_KEY_2 == aKey) {
 				cam->enablePointLight2 = !cam->enablePointLight2;
 				std::print("Point Light 2: {}\n", cam->enablePointLight2 ? "ON" : "OFF");
@@ -859,7 +1002,7 @@ namespace
 			else if (GLFW_KEY_3 == aKey) {
 				cam->enablePointLight3 = !cam->enablePointLight3;
 				std::print("Point Light 3: {}\n", cam->enablePointLight3 ? "ON" : "OFF");
-			}
+		}
 			else if (GLFW_KEY_4 == aKey) {
 				cam->enableDirectionalLight = !cam->enableDirectionalLight;
 				std::print("Directional Light: {}\n", cam->enableDirectionalLight ? "ON" : "OFF");
@@ -872,10 +1015,8 @@ namespace
 			}
 			// C 键：切换相机模式
 			else if (GLFW_KEY_C == aKey) {
-				// 获取相机数组指针
-				auto* cameraArrayPtr = static_cast<std::vector<CamCtrl_*>*>(glfwGetWindowUserPointer(aWindow));
-				
-				// Shift+C：切换右侧相机（如果分屏启用）
+
+				// Shift+C：切换右侧相机
 				if (cam->shiftPressed && cam->splitScreenEnabled) {
 					int currentMode = static_cast<int>(cam->rightCameraMode);
 					currentMode = (currentMode + 1) % 3;
@@ -883,16 +1024,16 @@ namespace
 					
 					const char* modeName[] = { "Free", "Follow", "Ground" };
 					std::print("Right Camera: {}\n", modeName[currentMode]);
-				}
-				// C：切换左侧（或主）相机
+	}
+				// C：切换左侧相机
 				else {
 					int currentMode = static_cast<int>(cam->cameraMode);
 					currentMode = (currentMode + 1) % 3;
 					cam->cameraMode = static_cast<CameraMode>(currentMode);
-					
+
 					const char* modeName[] = { "Free", "Follow", "Ground" };
 					std::print("Camera Switch: {}\n", modeName[currentMode]);
-					
+
 					// 切换到跟随或地面相机时，禁用手动控制
 					if (cam->cameraMode != CameraMode::Free) {
 						cam->cameraActive = false;
@@ -921,11 +1062,9 @@ namespace
 				cam->animationActive = false;
 				cam->animationPaused = false;
 				cam->animationTime = 0.f;
-				std::print("Animation RESET\n");
 			}
 		}
 
-		// Shift 和 Ctrl 键状态检测（全局有效）
 		if (GLFW_KEY_LEFT_SHIFT == aKey || GLFW_KEY_RIGHT_SHIFT == aKey)
 		{
 			if (aAction == GLFW_PRESS)

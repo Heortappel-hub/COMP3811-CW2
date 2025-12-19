@@ -15,13 +15,13 @@ void main() {
   vec3 N = normalize(vNormal);
     vec3 L = normalize(uLightDir);
 
-    // Lambert 漫反射
+    // 漫反射
     float NdotL = max(dot(N, L), 0.0);
 
     // 纹理采样
     vec3 texColor = texture(uTexture, vTexCoord).rgb;
 
- // 简单光照：环境光 + 漫反射
+ // 环境光 + 漫反射
     vec3 ambient = texColor * 0.3;        
     vec3 diffuse = texColor * 0.7 * NdotL; 
  

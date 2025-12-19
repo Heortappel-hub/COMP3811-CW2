@@ -160,8 +160,6 @@ Mat44f make_scaling( float aSX, float aSY, float aSZ ) noexcept
 inline
 Mat44f make_perspective_projection( float aFovInRadians, float aAspect, float aNear, float aFar ) noexcept
 {
-	// Standard right-handed perspective matrix with column-vector convention
-	// Row-major storage
 	float f =1.f / std::tan(aFovInRadians *0.5f);
 	Mat44f m{};
 	m.v[0] = f / aAspect; m.v[1] =0.f; m.v[2] =0.f; m.v[3] =0.f;

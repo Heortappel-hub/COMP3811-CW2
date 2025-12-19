@@ -32,7 +32,7 @@ struct MaterialData
 	std::string map_Kd; // diffuse texture path (optional)
 };
 
-// Mesh plus materials and per-triangle material ids
+// Mesh plus materials and per-triangle material
 struct ModelMeshData
 {
 	SimpleMeshData mesh;
@@ -46,4 +46,4 @@ GLuint create_vao( SimpleMeshData const& );
 
 GLuint create_vao_mat( ModelMeshData const& );
 
-#endif // SIMPLE_MESH_HPP_C6B749D6_C83B_434C_9E58_F05FC27FEFC9
+#endif 

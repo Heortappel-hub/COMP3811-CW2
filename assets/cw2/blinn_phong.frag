@@ -30,6 +30,7 @@ layout(location = 13) uniform int uEnableDirLight;
 layout(location = 0) out vec3 fragColor;
 
 
+// 点光源计算
 vec3 calculatePointLight(
     vec3 lightPos,
     vec3 lightColor,
@@ -40,61 +41,45 @@ vec3 calculatePointLight(
     vec3 Ks,
     float Ns
 ) {
-    vec3 L = lightPos - fragPos;
-    float distance = length(L);
-    L = normalize(L);
-
-
-    float attenuation = 1.0 / (distance * distance);
-
-
-    float diffuseBoost  = 2.0;
-    float specularBoost = 3.0;
-
-    // 漫反射
-    float NdotL = max(dot(N, L), 0.0);
-    vec3 diffuse = Kd * NdotL * lightColor * attenuation * diffuseBoost;
-
-    // Blinn-Phong
+    // Calculate light direction
+    vec3 L = normalize(lightPos - fragPos);
+    
+    // 1/r² distance attenuation
+    float r = length(lightPos - fragPos);
+    float attenuation = 1.0 / (r * r);
+    
+    // Blinn-Phong diffuse
+    vec3 diffuse = Kd * max(dot(N, L), 0.0) * lightColor * attenuation;
+    
+    // Blinn-Phong specular
     vec3 H = normalize(L + V);
-    float NdotH = max(dot(N, H), 0.0);
-    float shininess = max(Ns, 16.0);   
-    float spec = pow(NdotH, shininess);
-
-    vec3 specular = Ks * spec * lightColor * attenuation * specularBoost;
-
+    vec3 specular = Ks * pow(max(dot(N, H), 0.0), max(Ns, 16.0)) * lightColor * attenuation;
+    
     return diffuse + specular;
 }
 
 
 void main() {
-
+    // 归一化法线和视线方向
     vec3 N = normalize(vNormal);
     vec3 V = normalize(uCameraPos - vPosition);
-
-    // ------------------ 环境光 ------------------
-    vec3 ambient = vKa * 0.35;   
-
-    vec3 lighting = ambient;
-
-    // ------------------ 方向光 ------------------
+    
+    // 环境光
+    vec3 lighting = vKa * 0.35;
+    
+    // 方向光（太阳光）
     if (uEnableDirLight == 1) {
         vec3 L = normalize(uLightDir);
+        
+        // 漫反射：Kd * max(N·L, 0) * 0.6
+        lighting += vKd * max(dot(N, L), 0.0) * 0.6;
+        
+        // Blinn-Phong 镜面反射：Ks * max(N·H, 0)^Ns
         vec3 H = normalize(L + V);
-
-        float NdotL = max(dot(N, L), 0.0);
-        vec3 diffuse = vKd * NdotL * 0.6;  
-
-        float NdotH = max(dot(N, H), 0.0);
-        float shininess = max(vNs, 16.0);
-        float spec = pow(NdotH, shininess);
-
-        vec3 specular = vKs * spec * 1.0; 
-
-        lighting += diffuse + specular;
+        lighting += vKs * pow(max(dot(N, H), 0.0), max(vNs, 16.0));
     }
-
-
+    
+    // Light 1（红色）
     if (uEnablePointLight1 == 1) {
         lighting += calculatePointLight(
             uPointLight1Pos,
@@ -104,8 +89,8 @@ void main() {
             vKd, vKs, vNs
         );
     }
-
-
+    
+    // Light 2（绿色）
     if (uEnablePointLight2 == 1) {
         lighting += calculatePointLight(
             uPointLight2Pos,
@@ -115,8 +100,8 @@ void main() {
             vKd, vKs, vNs
         );
     }
-
-
+  
+    // Light 3（蓝色）
     if (uEnablePointLight3 == 1) {
         lighting += calculatePointLight(
             uPointLight3Pos,
@@ -126,7 +111,7 @@ void main() {
             vKd, vKs, vNs
         );
     }
-
-    // ------------------ 最终输出 ------------------
+    
+    // Final color（限制在 [0, 1] 范围）
     fragColor = clamp(lighting, 0.0, 1.0);
 }

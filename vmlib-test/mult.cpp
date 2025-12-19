@@ -30,7 +30,7 @@ TEST_CASE( "Matrix and vector multiplication", "[mat44]" )
 		REQUIRE_THAT( r.w, WithinAbs(1.f, kEps_ ) );
 	}
 
-	SECTION( "Composition: Translation then Scaling" )
+	SECTION( "Composition" )
 	{
 		auto const t = make_translation( {1.f,2.f,3.f } );
 		auto const s = make_scaling(2.f,2.f,2.f );

@@ -26,29 +26,29 @@ SimpleMeshData make_cuboid(float width, float height, float depth, Vec3f color =
 	float hy = height * 0.5f;
 	float hz = depth * 0.5f;
 
-	// 36 个顶点 (6 faces × 2 triangles × 3 vertices)
+	// 36 个顶点
 	mesh.positions = {
-		// Front face (Z+)
+		// Front face 
 		{ -hx, -hy,  hz }, {  hx, -hy,  hz }, {  hx,  hy,  hz },
 		{ -hx, -hy,  hz }, {  hx,  hy,  hz }, { -hx,  hy,  hz },
-		// Back face (Z-)
+		// Back face 
 		{ -hx, -hy, -hz }, { -hx,  hy, -hz }, {  hx,  hy, -hz },
 		{ -hx, -hy, -hz }, {  hx,  hy, -hz }, {  hx, -hy, -hz },
-		// Left face (X-)
+		// Left face
 		{ -hx, -hy, -hz }, { -hx, -hy,  hz }, { -hx,  hy,  hz },
 		{ -hx, -hy, -hz }, { -hx,  hy,  hz }, { -hx,  hy, -hz },
-		// Right face (X+)
+		// Right face
 		{  hx, -hy, -hz }, {  hx,  hy, -hz }, {  hx,  hy,  hz },
 		{  hx, -hy, -hz }, {hx,  hy,  hz }, {  hx, -hy,  hz },
-		// Top face (Y+)
+		// Top face
 		{ -hx,  hy, -hz }, { -hx,  hy,  hz }, {  hx,  hy,  hz },
 		{ -hx,  hy, -hz }, {  hx,  hy,  hz }, {  hx,  hy, -hz },
-		// Bottom face (Y-)
+		// Bottom face 
 		{ -hx, -hy, -hz }, {  hx, -hy, -hz }, {  hx, -hy,  hz },
 		{ -hx, -hy, -hz }, {  hx, -hy,  hz }, { -hx, -hy,  hz }
 	};
 
-	// 法线
+	// Normals
 	mesh.normals = {
 		// Front (Z+)
 		{ 0.f, 0.f, 1.f }, { 0.f, 0.f, 1.f }, { 0.f, 0.f, 1.f },
@@ -70,7 +70,7 @@ SimpleMeshData make_cuboid(float width, float height, float depth, Vec3f color =
 		{ 0.f, -1.f, 0.f }, { 0.f, -1.f, 0.f }, { 0.f, -1.f, 0.f }
 	};
 
-	// 统一颜色
+	// Colors
 	mesh.colors.resize(36, color);
 
 	return mesh;
@@ -195,10 +195,8 @@ SimpleMeshData make_cone(float height, float radius, Vec3f color, std::size_t su
 		Vec3f n1 = {std::cos(a1), slope, std::sin(a1)};
 		
 		// 归一化法线
-		float len0 = std::sqrt(n0.x*n0.x + n0.y*n0.y + n0.z*n0.z);
-		float len1 = std::sqrt(n1.x*n1.x + n1.y*n1.y + n1.z*n1.z);
-		n0.x /= len0; n0.y /= len0; n0.z /= len0;
-		n1.x /= len1; n1.y /= len1; n1.z /= len1;
+		n0 = normalize(n0);
+		n1 = normalize(n1);
 
 		// 侧面三角形
 		mesh.positions.emplace_back(p0);
@@ -252,14 +250,14 @@ ModelMeshData make_tardis(float width, float height, float depth)
 	// 材质 1：白色（窗户和圆柱）
 	MaterialData white_material;
 	white_material.name = "tardis_white";
-	white_material.Ka = Vec3f{0.2f, 0.2f, 0.2f}; // 环境光：浅灰
-	white_material.Kd = tardis_white;// 漫反射：白色
-	white_material.Ks = Vec3f{0.5f, 0.5f, 0.5f};     // 镜面反射：强白色高光
-	white_material.Ns = 64.0f;       // 更高光泽度
+	white_material.Ka = Vec3f{0.2f, 0.2f, 0.2f}; 
+	white_material.Kd = tardis_white;
+	white_material.Ks = Vec3f{0.5f, 0.5f, 0.5f};    
+	white_material.Ns = 64.0f;      
 	white_material.illum = 2;
 	
-	model.materials.push_back(blue_material);   // 索引 0
-	model.materials.push_back(white_material);  // 索引 1
+	model.materials.push_back(blue_material);   
+	model.materials.push_back(white_material); 
 	
 	// 1. 主体：蓝色长方体
 	SimpleMeshData main_body = make_cuboid(width, height, depth, tardis_blue);

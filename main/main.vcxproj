@@ -99,9 +99,7 @@
   <ItemGroup>
     <ClInclude Include="Custom_model.hpp" />
     <ClInclude Include="defaults.hpp" />
-    <ClInclude Include="generate_texture.hpp" />
     <ClInclude Include="loadobj.hpp" />
-    <ClInclude Include="mat_mesh.hpp" />
     <ClInclude Include="particle_system.hpp" />
     <ClInclude Include="simple_mesh.hpp" />
     <ClInclude Include="texture.hpp" />
@@ -109,12 +107,8 @@
   <ItemGroup>
     <ClCompile Include="loadobj.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="mat_mesh.cpp" />
     <ClCompile Include="particle_system.cpp" />
-    <ClCompile Include="particle_system_fixed.cpp" />
-    <ClCompile Include="simple_mesh.cpp">
-      <ObjectFileName>$(IntDir)\simple_mesh1.obj</ObjectFileName>
-    </ClCompile>
+    <ClCompile Include="simple_mesh.cpp" />
     <ClCompile Include="texture.cpp" />
   </ItemGroup>
   <ItemGroup>
